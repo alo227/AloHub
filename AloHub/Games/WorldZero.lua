@@ -1,25 +1,25 @@
 return function(app)
-	local tab = app.Window:CreateTab("WorldZero", "🌍")
+	local tab = app.Window:CreateTab("World//Zero", "🌍")
 
 	tab:AddSection("Game Module")
-	tab:AddLabel("Detected Place: WorldZero")
+	tab:AddLabel("Detected Game: World//Zero")
 	tab:AddLabel("Module Status: Loaded")
 
 	tab:AddSection("Placeholders")
-	tab:AddButton("WorldZero Action Placeholder", function()
-		print("WorldZero action placeholder")
+	tab:AddButton("World//Zero Action Placeholder", function()
+		print("World//Zero action placeholder")
 	end)
 
-	tab:AddToggle("WorldZero Toggle Placeholder", false, function(state)
-		print("WorldZero toggle:", state)
+	tab:AddToggle("World//Zero Toggle Placeholder", false, function(state)
+		print("World//Zero toggle:", state)
 	end)
 
-	tab:AddDropdown("WorldZero List Placeholder", {
+	tab:AddDropdown("World//Zero List Placeholder", {
 		"Quest Placeholder",
 		"Dungeon Placeholder",
 		"Boss Placeholder",
 	}, function(selected)
-		print("WorldZero selected:", selected)
+		print("World//Zero selected:", selected)
 	end)
 
 	return tab
