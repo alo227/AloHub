@@ -2,18 +2,65 @@ return function(app)
     local TweenService = game:GetService("TweenService")
     local Players = game:GetService("Players")
     local Workspace = game:GetService("Workspace")
+    local RunService = game:GetService("RunService")
 
     local player = Players.LocalPlayer
     local autoMove = false
     local currentTween = nil
+    local noclipConnection = nil
 
     local tweenSpeed = 60
     local offsetMode = "Above"
     local offsetDistance = 3
 
+    local function getCharacter()
+        return player.Character or player.CharacterAdded:Wait()
+    end
+
     local function getRoot()
-        local char = player.Character or player.CharacterAdded:Wait()
+        local char = getCharacter()
         return char:WaitForChild("HumanoidRootPart")
+    end
+
+    local function getHumanoid()
+        local char = getCharacter()
+        return char:FindFirstChildOfClass("Humanoid")
+    end
+
+    local function setNoclip(enabled)
+        local char = player.Character
+        if not char then
+            return
+        end
+
+        for _, obj in ipairs(char:GetDescendants()) do
+            if obj:IsA("BasePart") then
+                obj.CanCollide = not enabled
+            end
+        end
+    end
+
+    local function startNoclip()
+        if noclipConnection then
+            return
+        end
+
+        setNoclip(true)
+
+        noclipConnection = RunService.Stepped:Connect(function()
+            if autoMove then
+                setNoclip(true)
+            end
+        end)
+    end
+
+    local function stopNoclip()
+        if noclipConnection then
+            noclipConnection:Disconnect()
+            noclipConnection = nil
+        end
+
+        setNoclip(false)
     end
 
     local function getMobPos(mob)
@@ -72,6 +119,7 @@ return function(app)
 
     local function tweenToMob(mob)
         local root = getRoot()
+        local humanoid = getHumanoid()
         local mobCF = getMobCF(mob)
         if not mobCF then
             return
@@ -80,6 +128,10 @@ return function(app)
         if currentTween then
             currentTween:Cancel()
             currentTween = nil
+        end
+
+        if humanoid then
+            humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
         end
 
         local targetPos = mobCF.Position + getOffsetFromTarget(mobCF, offsetMode, offsetDistance)
@@ -95,24 +147,24 @@ return function(app)
 
     local tab = app.Window:CreateTab("World//Zero", "🌍")
 
-    tab:AddSection("Game Module")
-    tab:AddLabel("Detected Game: World//Zero")
-    tab:AddLabel("Module Status: Loaded")
-
     tab:AddSection("Auto Farm")
     tab:AddToggle("Auto Move", false, function(state)
         autoMove = state
         print("Auto Move:", state)
 
-        if not state and currentTween then
-            currentTween:Cancel()
-            currentTween = nil
+        if state then
+            startNoclip()
+        else
+            if currentTween then
+                currentTween:Cancel()
+                currentTween = nil
+            end
+            stopNoclip()
         end
     end)
 
     tab:AddSlider("Tween Speed", 10, 300, tweenSpeed, function(value)
         tweenSpeed = value
-        print("Tween Speed:", value)
     end)
 
     tab:AddDropdown("Tween Position", {
@@ -123,12 +175,10 @@ return function(app)
         "Right"
     }, function(selected)
         offsetMode = selected
-        print("Tween Position:", selected)
     end)
 
     tab:AddSlider("Tween Distance", 1, 25, offsetDistance, function(value)
         offsetDistance = value
-        print("Tween Distance:", value)
     end)
 
     task.spawn(function()
@@ -143,17 +193,11 @@ return function(app)
         end
     end)
 
-    tab:AddSection("Placeholders")
-    tab:AddButton("World//Zero Action Placeholder", function()
-        print("World//Zero action placeholder")
-    end)
-
-    tab:AddToggle("World//Zero Toggle Placeholder", false, function(state)
-        print("World//Zero toggle:", state)
-    end)
-
-    tab:AddDropdown("World//Zero List Placeholder", {"Quest Placeholder", "Dungeon Placeholder", "Boss Placeholder"}, function(selected)
-        print("World//Zero selected:", selected)
+    player.CharacterAdded:Connect(function()
+        task.wait(1)
+        if autoMove then
+            startNoclip()
+        end
     end)
 
     return tab
