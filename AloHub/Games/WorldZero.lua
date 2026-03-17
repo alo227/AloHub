@@ -229,7 +229,7 @@ return function(app)
                     moveToMob(mob)
                 end
             end
-            task.wait(0.35)
+            task.wait(0.05)
         end
     end)
 
