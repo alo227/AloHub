@@ -1,5 +1,3 @@
-return function()
-
 local UIS = game:GetService("UserInputService")
 local TS = game:GetService("TweenService")
 local Players = game:GetService("Players")
@@ -11,16 +9,17 @@ local toggleKey = Enum.KeyCode.RightShift
 
 local Library = {}
 
--- CREATE WINDOW
 function Library:CreateWindow(title)
 
-	local gui = Instance.new("ScreenGui", player.PlayerGui)
-	gui.Name = "HubV2"
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "AloHubUI"
+	gui.Parent = player.PlayerGui
 
 	local main = Instance.new("Frame", gui)
 	main.Size = UDim2.new(0,540,0,380)
 	main.Position = UDim2.new(0.5,-270,0.5,-190)
 	main.BackgroundColor3 = Color3.fromRGB(18,18,22)
+	main.BorderSizePixel = 0
 	Instance.new("UICorner", main).CornerRadius = UDim.new(0,12)
 
 	local stroke = Instance.new("UIStroke", main)
@@ -47,6 +46,9 @@ function Library:CreateWindow(title)
 	mini.Position = UDim2.new(1,-40,0.5,-15)
 	mini.Text = "-"
 	mini.Font = Enum.Font.GothamBold
+	mini.BackgroundColor3 = Color3.fromRGB(40,40,50)
+	mini.TextColor3 = Color3.new(1,1,1)
+	Instance.new("UICorner", mini)
 
 	local minimized = false
 
@@ -58,7 +60,7 @@ function Library:CreateWindow(title)
 		}):Play()
 	end)
 
-	-- DRAG
+	-- DRAGGING
 	local dragging, dragStart, startPos
 
 	top.InputBegan:Connect(function(i)
@@ -98,22 +100,27 @@ function Library:CreateWindow(title)
 	pages.Position = UDim2.new(0,0,0,80)
 	pages.BackgroundTransparency = 1
 
-	local current
+	local currentPage
+	local tabCount = 0
 
 	local window = {}
 
 	function window:CreateTab(name)
+		tabCount += 1
 
 		local btn = Instance.new("TextButton", tabBar)
 		btn.Size = UDim2.new(0,110,1,0)
+		btn.Position = UDim2.new(0,(tabCount-1)*110,0,0)
 		btn.Text = name
 		btn.Font = Enum.Font.Gotham
 		btn.TextSize = 14
 		btn.BackgroundTransparency = 1
+		btn.TextColor3 = Color3.fromRGB(180,180,200)
 
 		local page = Instance.new("Frame", pages)
 		page.Size = UDim2.new(1,0,1,0)
 		page.Visible = false
+		page.BackgroundTransparency = 1
 
 		local layout = Instance.new("UIListLayout", page)
 		layout.Padding = UDim.new(0,8)
@@ -123,18 +130,34 @@ function Library:CreateWindow(title)
 		end)
 
 		btn.MouseLeave:Connect(function()
-			TS:Create(btn, TweenInfo.new(0.2), {TextColor3 = Color3.new(1,1,1)}):Play()
+			if currentPage ~= page then
+				TS:Create(btn, TweenInfo.new(0.2), {TextColor3 = Color3.fromRGB(180,180,200)}):Play()
+			end
 		end)
 
 		btn.MouseButton1Click:Connect(function()
-			if current then current.Visible = false end
+			if currentPage then currentPage.Visible = false end
 			page.Visible = true
-			current = page
+			currentPage = page
+
+			for _,b in pairs(tabBar:GetChildren()) do
+				if b:IsA("TextButton") then
+					b.TextColor3 = Color3.fromRGB(180,180,200)
+				end
+			end
+
+			btn.TextColor3 = ACCENT
 		end)
+
+		-- FIRST TAB AUTO SELECT
+		if not currentPage then
+			page.Visible = true
+			currentPage = page
+			btn.TextColor3 = ACCENT
+		end
 
 		local tab = {}
 
-		-- BUTTON
 		function tab:AddButton(text, callback)
 			local btn = Instance.new("TextButton", page)
 			btn.Size = UDim2.new(1,-10,0,35)
@@ -142,25 +165,21 @@ function Library:CreateWindow(title)
 			btn.Font = Enum.Font.Gotham
 			btn.TextSize = 14
 			btn.BackgroundColor3 = Color3.fromRGB(28,28,35)
+			btn.TextColor3 = Color3.new(1,1,1)
 
 			Instance.new("UICorner", btn).CornerRadius = UDim.new(0,8)
 
 			btn.MouseEnter:Connect(function()
-				TS:Create(btn, TweenInfo.new(0.2), {
-					BackgroundColor3 = ACCENT
-				}):Play()
+				TS:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = ACCENT}):Play()
 			end)
 
 			btn.MouseLeave:Connect(function()
-				TS:Create(btn, TweenInfo.new(0.2), {
-					BackgroundColor3 = Color3.fromRGB(28,28,35)
-				}):Play()
+				TS:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(28,28,35)}):Play()
 			end)
 
 			btn.MouseButton1Click:Connect(callback)
 		end
 
-		-- TOGGLE
 		function tab:AddToggle(text, callback)
 			local holder = Instance.new("Frame", page)
 			holder.Size = UDim2.new(1,-10,0,35)
@@ -174,6 +193,7 @@ function Library:CreateWindow(title)
 			label.BackgroundTransparency = 1
 			label.Position = UDim2.new(0,10,0,0)
 			label.Size = UDim2.new(1,-60,1,0)
+			label.TextColor3 = Color3.new(1,1,1)
 
 			local toggle = Instance.new("Frame", holder)
 			toggle.Size = UDim2.new(0,40,0,20)
@@ -185,7 +205,7 @@ function Library:CreateWindow(title)
 			dot.Size = UDim2.new(0,16,0,16)
 			dot.Position = UDim2.new(0,2,0.5,-8)
 			dot.BackgroundColor3 = Color3.new(1,1,1)
-			Instance.new("UICorner", dot).CornerRadius = UDim.new(1,0)
+			Instance.new("UICorner", dot)
 
 			local state = false
 
@@ -207,7 +227,7 @@ function Library:CreateWindow(title)
 		return tab
 	end
 
-	-- SETTINGS
+	-- SETTINGS TAB
 	local settings = window:CreateTab("Settings")
 
 	settings:AddButton("Set Toggle Key", function()
@@ -232,5 +252,3 @@ function Library:CreateWindow(title)
 end
 
 return Library
-
-end
