@@ -45,6 +45,25 @@ return function(app)
         return ok and cf or nil
     end
 
+    local function isMobAlive(mob)
+        if not mob then
+            return false
+        end
+
+        local healthProperties = mob:FindFirstChild("HealthProperties")
+        if not healthProperties then
+            return false
+        end
+
+        local health = healthProperties:FindFirstChild("Health")
+        if not health then
+            return false
+        end
+
+        local value = health.Value
+        return typeof(value) == "number" and value > 0
+    end
+
     local function getNearestMob()
         local root = getRoot()
         local mobsFolder = Workspace:FindFirstChild("Mobs")
@@ -56,12 +75,14 @@ return function(app)
         local nearestDist = math.huge
 
         for _, mob in ipairs(mobsFolder:GetChildren()) do
-            local pos = getMobPos(mob)
-            if pos then
-                local dist = (pos - root.Position).Magnitude
-                if dist < nearestDist then
-                    nearestDist = dist
-                    nearestMob = mob
+            if isMobAlive(mob) then
+                local pos = getMobPos(mob)
+                if pos then
+                    local dist = (pos - root.Position).Magnitude
+                    if dist < nearestDist then
+                        nearestDist = dist
+                        nearestMob = mob
+                    end
                 end
             end
         end
@@ -86,6 +107,10 @@ return function(app)
     end
 
     local function moveToMob(mob)
+        if not isMobAlive(mob) then
+            return
+        end
+
         local root = getRoot()
         local humanoid = getHumanoid()
         local mobCF = getMobCF(mob)
@@ -123,6 +148,10 @@ return function(app)
     local function attackMob(mob)
         if not AttackRemote then
             warn("AttackRemote not found")
+            return
+        end
+
+        if not isMobAlive(mob) then
             return
         end
 
