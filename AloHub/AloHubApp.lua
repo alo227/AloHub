@@ -1,12 +1,10 @@
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local GUILibrary = loadstring(game:HttpGet("https://raw.githubusercontent.com/alo227/AloHub/refs/heads/main/AloHub/GUILibrary.lua"))()
+local LoadingOverlay = loadstring(game:HttpGet("https://raw.githubusercontent.com/alo227/AloHub/refs/heads/main/AloHub/Components/LoadingOverlay.lua"))()
 
-local GUILibrary = require(ReplicatedStorage.AloHub.GUILibrary)
-local LoadingOverlay = require(ReplicatedStorage.AloHub.Components.LoadingOverlay)
-
-local SettingsTabFactory = require(ReplicatedStorage.AloHub.Tabs.SettingsTab)
-local LoginTabFactory = require(ReplicatedStorage.AloHub.Tabs.LoginTab)
-local MainTabFactory = require(ReplicatedStorage.AloHub.Tabs.MainTab)
-local WorldZeroFactory = require(ReplicatedStorage.AloHub.Games.WorldZero)
+local SettingsTabFactory = loadstring(game:HttpGet("https://raw.githubusercontent.com/alo227/AloHub/refs/heads/main/AloHub/Tabs/SettingsTab.lua"))()
+local LoginTabFactory = loadstring(game:HttpGet("https://raw.githubusercontent.com/alo227/AloHub/refs/heads/main/AloHub/Tabs/LoginTab.lua"))()
+local MainTabFactory = loadstring(game:HttpGet("https://raw.githubusercontent.com/alo227/AloHub/refs/heads/main/AloHub/Tabs/MainTab.lua"))()
+local WorldZeroFactory = loadstring(game:HttpGet("https://raw.githubusercontent.com/alo227/AloHub/refs/heads/main/AloHub/Games/WorldZero.lua"))()
 
 local AloHubApp = {}
 AloHubApp.__index = AloHubApp
