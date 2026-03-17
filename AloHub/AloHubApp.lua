@@ -1,0 +1,119 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local GUILibrary = require(ReplicatedStorage.AloHub.GUILibrary)
+local LoadingOverlay = require(ReplicatedStorage.AloHub.Components.LoadingOverlay)
+
+local SettingsTabFactory = require(ReplicatedStorage.AloHub.Tabs.SettingsTab)
+local LoginTabFactory = require(ReplicatedStorage.AloHub.Tabs.LoginTab)
+local MainTabFactory = require(ReplicatedStorage.AloHub.Tabs.MainTab)
+local WorldZeroFactory = require(ReplicatedStorage.AloHub.Games.WorldZero)
+
+local AloHubApp = {}
+AloHubApp.__index = AloHubApp
+
+function AloHubApp.new()
+	local self = setmetatable({}, AloHubApp)
+
+	self.State = {
+		IsAuthenticated = false,
+		AccountName = nil,
+		LicenseDays = 0,
+		LicenseStatus = "Free",
+		NotificationsEnabled = true,
+		ThemeName = "Default",
+	}
+
+	self.Window = GUILibrary:CreateWindow("Alo Hub")
+	self.Loading = LoadingOverlay.new(self.Window.PageHolder.Parent.Parent)
+
+	self.RegisteredTabs = {}
+	self.GameModules = {
+		[15759515082] = WorldZeroFactory, -- Beispiel-PlaceId
+	}
+
+	return self
+end
+
+function AloHubApp:ClearDynamicTabs()
+	for name, tab in pairs(self.RegisteredTabs) do
+		if name ~= "Settings" then
+			tab:Destroy()
+			self.RegisteredTabs[name] = nil
+		end
+	end
+end
+
+function AloHubApp:LoadPersistentTabs()
+	if not self.RegisteredTabs.Settings then
+		self.RegisteredTabs.Settings = SettingsTabFactory(self)
+	end
+end
+
+function AloHubApp:LoadSessionTabs()
+	if self.State.IsAuthenticated then
+		if self.RegisteredTabs.Login then
+			self.RegisteredTabs.Login:Destroy()
+			self.RegisteredTabs.Login = nil
+		end
+
+		if not self.RegisteredTabs.Main then
+			self.RegisteredTabs.Main = MainTabFactory(self)
+		end
+	else
+		if self.RegisteredTabs.Main then
+			self.RegisteredTabs.Main:Destroy()
+			self.RegisteredTabs.Main = nil
+		end
+
+		if not self.RegisteredTabs.Login then
+			self.RegisteredTabs.Login = LoginTabFactory(self)
+			self.RegisteredTabs.Login:Show()
+		end
+	end
+end
+
+function AloHubApp:LoadGameTab()
+	if not self.State.IsAuthenticated then
+		if self.RegisteredTabs.Game then
+			self.RegisteredTabs.Game:Destroy()
+			self.RegisteredTabs.Game = nil
+		end
+		return
+	end
+
+	local factory = self.GameModules[game.PlaceId]
+
+	if self.RegisteredTabs.Game then
+		self.RegisteredTabs.Game:Destroy()
+		self.RegisteredTabs.Game = nil
+	end
+
+	if factory then
+		self.RegisteredTabs.Game = factory(self)
+	end
+end
+
+function AloHubApp:Refresh()
+	self:LoadPersistentTabs()
+	self:LoadSessionTabs()
+	self:LoadGameTab()
+
+	if self.State.IsAuthenticated and self.RegisteredTabs.Main then
+		self.RegisteredTabs.Main:Show()
+	elseif self.RegisteredTabs.Login then
+		self.RegisteredTabs.Login:Show()
+	end
+
+	task.delay(0.2, function()
+		self.Loading:Hide()
+	end)
+end
+
+function AloHubApp:Start()
+	self.Loading:Show("Initializing", "Building interface...")
+	task.delay(0.5, function()
+		self:Refresh()
+	end)
+end
+
+return AloHubApp
