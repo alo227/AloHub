@@ -1,4 +1,4 @@
-local UI = loadstring(game:HttpGet("https://raw.githubusercontent.com/alo227/AloHub/main/GUILibrary.lua"))()
+local UI = loadstring(game:HttpGet("https://raw.githubusercontent.com/alo227/AloHub/refs/heads/main/GUILibrary.lua"))()
 
 local window = UI:CreateWindow("Alo Login")
 
@@ -17,7 +17,7 @@ loginTab:AddButton("Login", function()
 	if username == "Alo" and password == "Alo" then
 		statusLabel:Set("Status: Login successful")
 		local success, result = pcall(function()
-			return loadstring(game:HttpGet("https://raw.githubusercontent.com/alo227/AloHub/main/AloHub.lua"))()
+			return loadstring(game:HttpGet("https://raw.githubusercontent.com/alo227/AloHub/refs/heads/main/AloHub.lua"))()
 		end)
 
 		if success then

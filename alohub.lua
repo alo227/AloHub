@@ -1,4 +1,4 @@
-local UI = loadstring(game:HttpGet("https://raw.githubusercontent.com/alo227/AloHub/main/GUILibrary.lua"))()
+local UI = loadstring(game:HttpGet("https://raw.githubusercontent.com/alo227/AloHub/refs/heads/main/GUILibrary.lua"))()
 
 local window = UI:CreateWindow("Alo Hub")
 
