@@ -1,5 +1,5 @@
 return function(app)
-	local tab = app.Window:CreateTab("Main", "⌂")
+	local tab = app.Window:CreateTab("Main", "🏠")
 
 	tab:AddSection("Account")
 
