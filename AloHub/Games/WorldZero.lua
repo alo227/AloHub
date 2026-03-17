@@ -17,6 +17,9 @@ return function(app)
     local offsetDistance = 3
     local attackSpeed = 3
 
+    local yLockEnabled = false
+    local lockedY = nil
+
     local AttackRemote = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Combat"):WaitForChild("Attack")
 
     local function getCharacter()
@@ -31,6 +34,21 @@ return function(app)
     local function getHumanoid()
         local char = getCharacter()
         return char:FindFirstChildOfClass("Humanoid")
+    end
+
+    local function clearVerticalVelocity(root)
+        local vel = root.AssemblyLinearVelocity
+        root.AssemblyLinearVelocity = Vector3.new(vel.X, 0, vel.Z)
+    end
+
+    local function setLockedHeight(value)
+        lockedY = value
+        yLockEnabled = value ~= nil
+    end
+
+    local function stopHeightLock()
+        yLockEnabled = false
+        lockedY = nil
     end
 
     local function getMobPos(mob)
@@ -119,6 +137,10 @@ return function(app)
         currentPathId += 1
     end
 
+    local function isNearTarget(root, targetPos, threshold)
+        return (targetPos - root.Position).Magnitude <= (threshold or 1.25)
+    end
+
     local function moveToMob(mob)
         if not isMobAlive(mob) then
             return
@@ -132,13 +154,28 @@ return function(app)
         end
 
         local targetPos = mobCF.Position + getOffsetFromTarget(mobCF, offsetMode, offsetDistance)
+
+        if offsetMode == "Above" then
+            targetPos = Vector3.new(targetPos.X, mobCF.Position.Y + offsetDistance, targetPos.Z)
+            setLockedHeight(targetPos.Y)
+        else
+            stopHeightLock()
+        end
+
         local targetCF = CFrame.new(targetPos, mobCF.Position)
 
         stopCurrentTween()
 
+        if isNearTarget(root, targetPos, 1.25) then
+            clearVerticalVelocity(root)
+            return
+        end
+
         if moveMode == "Teleport" then
             stopCurrentPath()
+            clearVerticalVelocity(root)
             root.CFrame = targetCF
+            clearVerticalVelocity(root)
             return
         end
 
@@ -149,6 +186,8 @@ return function(app)
                 humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
             end
 
+            clearVerticalVelocity(root)
+
             local distance = (targetPos - root.Position).Magnitude
             local duration = math.max(distance / math.max(tweenSpeed, 1), 0.05)
 
@@ -157,10 +196,19 @@ return function(app)
             })
 
             currentTween:Play()
+
+            currentTween.Completed:Connect(function()
+                if root and root.Parent then
+                    clearVerticalVelocity(root)
+                end
+            end)
+
             return
         end
 
         if moveMode == "Pathfinder" then
+            stopHeightLock()
+
             if not humanoid then
                 return
             end
@@ -252,6 +300,7 @@ return function(app)
         if not state then
             stopCurrentTween()
             stopCurrentPath()
+            stopHeightLock()
         end
     end)
 
@@ -259,6 +308,11 @@ return function(app)
         moveMode = selected
         stopCurrentTween()
         stopCurrentPath()
+
+        if selected == "Pathfinder" then
+            stopHeightLock()
+        end
+
         print("Move Mode:", selected)
     end)
 
@@ -269,12 +323,21 @@ return function(app)
 
     tab:AddDropdown("Tween Position", {"Front", "Behind", "Above", "Left", "Right"}, function(selected)
         offsetMode = selected
+
+        if selected ~= "Above" then
+            stopHeightLock()
+        end
+
         print("Tween Position:", selected)
     end)
 
     tab:AddSlider("Tween Distance", 1, 25, offsetDistance, function(value)
         offsetDistance = value
         print("Tween Distance:", value)
+
+        if offsetMode ~= "Above" then
+            stopHeightLock()
+        end
     end)
 
     tab:AddSection("Combat")
@@ -298,6 +361,20 @@ return function(app)
                 end
             end
             task.wait(0.05)
+        end
+    end)
+
+    task.spawn(function()
+        while true do
+            if yLockEnabled and autoMove and moveMode ~= "Pathfinder" and offsetMode == "Above" and lockedY then
+                local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+                if root then
+                    local pos = root.Position
+                    root.CFrame = CFrame.new(pos.X, lockedY, pos.Z) * (root.CFrame - root.CFrame.Position)
+                    clearVerticalVelocity(root)
+                end
+            end
+            task.wait(0.03)
         end
     end)
 
