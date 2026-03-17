@@ -26,7 +26,7 @@ function AloHubApp.new()
 
 	self.RegisteredTabs = {}
 	self.GameModules = {
-		[2727067538] = WorldZeroFactory, -- Beispiel-PlaceId
+		[985731078] = WorldZeroFactory, -- Beispiel-PlaceId
 	}
 
 	return self
@@ -79,7 +79,7 @@ function AloHubApp:LoadGameTab()
 		return
 	end
 
-	local factory = self.GameModules[game.PlaceId]
+	local factory = self.GameModules[game.GameId]
 
 	if self.RegisteredTabs.Game then
 		self.RegisteredTabs.Game:Destroy()
