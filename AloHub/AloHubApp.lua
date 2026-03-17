@@ -79,7 +79,7 @@ function AloHubApp:LoadGameTab()
 		return
 	end
 
-	local factory = self.GameModules[game.GameId]
+	local factory = self.GameModules[game.PlaceId]
 
 	if self.RegisteredTabs.Game then
 		self.RegisteredTabs.Game:Destroy()
