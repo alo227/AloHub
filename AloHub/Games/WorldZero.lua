@@ -3,11 +3,13 @@ return function(app)
     local Players = game:GetService("Players")
     local Workspace = game:GetService("Workspace")
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    local PathfindingService = game:GetService("PathfindingService")
 
     local player = Players.LocalPlayer
     local autoMove = false
     local autoAttack = false
     local currentTween = nil
+    local currentPathId = 0
 
     local moveMode = "Tween"
     local tweenSpeed = 60
@@ -46,7 +48,7 @@ return function(app)
     end
 
     local function isMobAlive(mob)
-        if not mob then
+        if not mob or not mob.Parent then
             return false
         end
 
@@ -106,6 +108,17 @@ return function(app)
         return Vector3.new(0, distance, 0)
     end
 
+    local function stopCurrentTween()
+        if currentTween then
+            currentTween:Cancel()
+            currentTween = nil
+        end
+    end
+
+    local function stopCurrentPath()
+        currentPathId += 1
+    end
+
     local function moveToMob(mob)
         if not isMobAlive(mob) then
             return
@@ -121,28 +134,81 @@ return function(app)
         local targetPos = mobCF.Position + getOffsetFromTarget(mobCF, offsetMode, offsetDistance)
         local targetCF = CFrame.new(targetPos, mobCF.Position)
 
-        if currentTween then
-            currentTween:Cancel()
-            currentTween = nil
-        end
+        stopCurrentTween()
 
         if moveMode == "Teleport" then
+            stopCurrentPath()
             root.CFrame = targetCF
             return
         end
 
-        if humanoid then
-            humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
+        if moveMode == "Tween" then
+            stopCurrentPath()
+
+            if humanoid then
+                humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
+            end
+
+            local distance = (targetPos - root.Position).Magnitude
+            local duration = math.max(distance / math.max(tweenSpeed, 1), 0.05)
+
+            currentTween = TweenService:Create(root, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
+                CFrame = targetCF
+            })
+
+            currentTween:Play()
+            return
         end
 
-        local distance = (targetPos - root.Position).Magnitude
-        local duration = math.max(distance / math.max(tweenSpeed, 1), 0.05)
+        if moveMode == "Pathfinder" then
+            if not humanoid then
+                return
+            end
 
-        currentTween = TweenService:Create(root, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
-            CFrame = targetCF
-        })
+            stopCurrentPath()
+            local myPathId = currentPathId + 1
+            currentPathId = myPathId
 
-        currentTween:Play()
+            task.spawn(function()
+                local path = PathfindingService:CreatePath({
+                    AgentRadius = 2,
+                    AgentHeight = 5,
+                    AgentCanJump = true,
+                    AgentCanClimb = true,
+                    WaypointSpacing = 4,
+                })
+
+                local ok = pcall(function()
+                    path:ComputeAsync(root.Position, targetPos)
+                end)
+
+                if not ok or path.Status ~= Enum.PathStatus.Success then
+                    return
+                end
+
+                local waypoints = path:GetWaypoints()
+                for _, waypoint in ipairs(waypoints) do
+                    if not autoMove or moveMode ~= "Pathfinder" or currentPathId ~= myPathId then
+                        return
+                    end
+
+                    if not isMobAlive(mob) then
+                        return
+                    end
+
+                    humanoid:MoveTo(waypoint.Position)
+
+                    if waypoint.Action == Enum.PathWaypointAction.Jump then
+                        humanoid.Jump = true
+                    end
+
+                    local reached = humanoid.MoveToFinished:Wait()
+                    if not reached then
+                        return
+                    end
+                end
+            end)
+        end
     end
 
     local function attackMob(mob)
@@ -183,14 +249,16 @@ return function(app)
         autoMove = state
         print("Auto Move:", state)
 
-        if not state and currentTween then
-            currentTween:Cancel()
-            currentTween = nil
+        if not state then
+            stopCurrentTween()
+            stopCurrentPath()
         end
     end)
 
-    tab:AddDropdown("Mode", {"Tween", "Teleport"}, function(selected)
+    tab:AddDropdown("Mode", {"Tween", "Teleport", "Pathfinder"}, function(selected)
         moveMode = selected
+        stopCurrentTween()
+        stopCurrentPath()
         print("Move Mode:", selected)
     end)
 
