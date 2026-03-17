@@ -26,13 +26,38 @@ local THEME = {
 }
 
 local function tween(obj, time, props, style, direction)
+	if typeof(obj) ~= "Instance" then
+		warn("tween() invalid obj:", obj)
+		warn(debug.traceback())
+		return nil
+	end
+
+	if type(props) ~= "table" then
+		warn("tween() props is not a table for:", obj:GetFullName(), "props =", props)
+		warn(debug.traceback())
+		return nil
+	end
+
+	local cleanProps = {}
+	for k, v in pairs(props) do
+		if v ~= nil then
+			cleanProps[k] = v
+		end
+	end
+
+	if next(cleanProps) == nil then
+		warn("tween() props table empty for:", obj:GetFullName())
+		warn(debug.traceback())
+		return nil
+	end
+
 	local info = TweenInfo.new(
 		time or 0.2,
 		style or Enum.EasingStyle.Quint,
 		direction or Enum.EasingDirection.Out
 	)
 
-	local t = TS:Create(obj, info, props)
+	local t = TS:Create(obj, info, cleanProps)
 	t:Play()
 	return t
 end
