@@ -1,32 +1,43 @@
 return function(app)
-	local tab = app.Window:CreateTab("Login", "🔐")
+    local tab = app.Window:CreateTab("Login", "")
 
-	tab:AddSection("Authentication")
+    tab:AddSection("Authentication")
 
-	local usernameInput = tab:AddInput("Username", "Enter username...", nil, false)
-	local passwordInput = tab:AddInput("Password", "Enter password...", nil, true)
-	local statusLabel = tab:AddLabel("Status: Waiting for login")
+    local usernameInput = tab:AddInput("Username", "Enter username...", app.State.SavedUsername or "", false)
+    local passwordInput = tab:AddInput("Password", "Enter password...", app.State.SavedPassword or "", true)
 
-	tab:AddButton("Login", function()
-		local username = usernameInput:Get()
-		local password = passwordInput:Get()
+    local rememberMe = app.State.RememberMe == true
+    local statusLabel = tab:AddLabel("Status: Waiting for login")
 
-		app.Loading:Show("Authenticating", "Verifying credentials...")
+    tab:AddToggle("Remember Me", rememberMe, function(state)
+        rememberMe = state
+        app.State.RememberMe = state
+    end)
 
-		task.delay(0.6, function()
-			if username == "Alo" and password == "Alo" then
-				statusLabel:Set("Status: Login successful")
-				app.State.IsAuthenticated = true
-				app.State.AccountName = "Alo"
-				app.State.LicenseStatus = "Premium"
-				app.State.LicenseDays = 30
-				app:Refresh()
-			else
-				statusLabel:Set("Status: Invalid username or password")
-				app.Loading:Hide()
-			end
-		end)
-	end)
+    tab:AddButton("Login", function()
+        local username = usernameInput:Get()
+        local password = passwordInput:Get()
 
-	return tab
+        app.Loading:Show("Authenticating", "Verifying credentials...")
+
+        task.delay(0.6, function()
+            local ok = app:TryLogin(username, password)
+
+            if ok then
+                app:SaveConfig(
+                    rememberMe and username or "",
+                    rememberMe and password or "",
+                    rememberMe
+                )
+
+                statusLabel:Set("Status: Login successful")
+                app:Refresh()
+            else
+                statusLabel:Set("Status: Invalid username or password")
+                app.Loading:Hide()
+            end
+        end)
+    end)
+
+    return tab
 end
