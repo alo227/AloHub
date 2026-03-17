@@ -7,6 +7,10 @@ return function(app)
     local autoMove = false
     local currentTween = nil
 
+    local tweenSpeed = 60
+    local offsetMode = "Above"
+    local offsetDistance = 3
+
     local function getRoot()
         local char = player.Character or player.CharacterAdded:Wait()
         return char:WaitForChild("HumanoidRootPart")
@@ -17,6 +21,13 @@ return function(app)
             return mob:GetPivot()
         end)
         return ok and cf and cf.Position or nil
+    end
+
+    local function getMobCF(mob)
+        local ok, cf = pcall(function()
+            return mob:GetPivot()
+        end)
+        return ok and cf or nil
     end
 
     local function getNearestMob()
@@ -43,20 +54,40 @@ return function(app)
         return nearestMob, nearestDist
     end
 
-    local function tweenToPosition(targetPos)
+    local function getOffsetFromTarget(targetCF, mode, distance)
+        if mode == "Front" then
+            return targetCF.LookVector * distance
+        elseif mode == "Behind" then
+            return -targetCF.LookVector * distance
+        elseif mode == "Above" then
+            return Vector3.new(0, distance, 0)
+        elseif mode == "Left" then
+            return -targetCF.RightVector * distance
+        elseif mode == "Right" then
+            return targetCF.RightVector * distance
+        end
+
+        return Vector3.new(0, distance, 0)
+    end
+
+    local function tweenToMob(mob)
         local root = getRoot()
+        local mobCF = getMobCF(mob)
+        if not mobCF then
+            return
+        end
 
         if currentTween then
             currentTween:Cancel()
             currentTween = nil
         end
 
+        local targetPos = mobCF.Position + getOffsetFromTarget(mobCF, offsetMode, offsetDistance)
         local distance = (targetPos - root.Position).Magnitude
-        local speed = 60
-        local duration = math.max(distance / speed, 0.05)
+        local duration = math.max(distance / math.max(tweenSpeed, 1), 0.05)
 
         currentTween = TweenService:Create(root, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
-            CFrame = CFrame.new(targetPos)
+            CFrame = CFrame.new(targetPos, mobCF.Position)
         })
 
         currentTween:Play()
@@ -79,15 +110,33 @@ return function(app)
         end
     end)
 
+    tab:AddSlider("Tween Speed", 10, 300, tweenSpeed, function(value)
+        tweenSpeed = value
+        print("Tween Speed:", value)
+    end)
+
+    tab:AddDropdown("Tween Position", {
+        "Front",
+        "Behind",
+        "Above",
+        "Left",
+        "Right"
+    }, function(selected)
+        offsetMode = selected
+        print("Tween Position:", selected)
+    end)
+
+    tab:AddSlider("Tween Distance", 1, 25, offsetDistance, function(value)
+        offsetDistance = value
+        print("Tween Distance:", value)
+    end)
+
     task.spawn(function()
         while true do
             if autoMove then
                 local mob = getNearestMob()
                 if mob then
-                    local pos = getMobPos(mob)
-                    if pos then
-                        tweenToPosition(pos + Vector3.new(0, 3, 0))
-                    end
+                    tweenToMob(mob)
                 end
             end
             task.wait(0.35)
@@ -103,10 +152,9 @@ return function(app)
         print("World//Zero toggle:", state)
     end)
 
-    tab:AddDropdown("World//Zero List Placeholder", {"Quest Placeholder", "Dungeon Placeholder", "Boss Placeholder"},
-        function(selected)
-            print("World//Zero selected:", selected)
-        end)
+    tab:AddDropdown("World//Zero List Placeholder", {"Quest Placeholder", "Dungeon Placeholder", "Boss Placeholder"}, function(selected)
+        print("World//Zero selected:", selected)
+    end)
 
     return tab
 end
