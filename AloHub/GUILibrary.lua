@@ -26,12 +26,13 @@ local THEME = {
 }
 
 local function tween(obj, time, props, style, direction)
-	local info = TweenInfo.new(time or 0.2, style or Enum.EasingStyle.Quint, direction or Enum.EasingDirection.Out)
-	local t = TS:Create(obj, info)
-	for k, v in pairs(props) do
-		obj[k] = obj[k]
-	end
-	t = TS:Create(obj, info, props)
+	local info = TweenInfo.new(
+		time or 0.2,
+		style or Enum.EasingStyle.Quint,
+		direction or Enum.EasingDirection.Out
+	)
+
+	local t = TS:Create(obj, info, props)
 	t:Play()
 	return t
 end
