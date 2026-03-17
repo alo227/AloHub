@@ -12,15 +12,13 @@ local THEME = {
 	Panel = Color3.fromRGB(11, 14, 24),
 	Card = Color3.fromRGB(18, 22, 34),
 	CardHover = Color3.fromRGB(24, 29, 44),
-	StrokeDark = Color3.fromRGB(58, 66, 104),
-	StrokeLight = Color3.fromRGB(92, 104, 156),
+	StrokeDark = Color3.fromRGB(62, 72, 115),
+	StrokeLight = Color3.fromRGB(104, 118, 180),
 	Text = Color3.fromRGB(240, 243, 255),
 	SubText = Color3.fromRGB(150, 158, 188),
 	Accent = Color3.fromRGB(125, 92, 255),
 	AccentSoft = Color3.fromRGB(94, 79, 170),
 	ToggleOff = Color3.fromRGB(60, 65, 82),
-	Green = Color3.fromRGB(70, 190, 120),
-	Backplate = Color3.fromRGB(3, 4, 10),
 }
 
 local function tween(obj, time, props, style, direction)
@@ -49,7 +47,7 @@ local function stroke(obj, color, thickness, transparency)
 	local s = Instance.new("UIStroke")
 	s.Color = color or THEME.StrokeDark
 	s.Thickness = thickness or 1
-	s.Transparency = transparency == nil and 0.4 or transparency
+	s.Transparency = transparency == nil and 0.35 or transparency
 	s.Parent = obj
 	return s
 end
@@ -77,30 +75,6 @@ function Library:CreateWindow(title)
 		Parent = player:WaitForChild("PlayerGui"),
 	})
 
-	local backplate2 = create("Frame", {
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.5, 0, 0.5, 10),
-		Size = UDim2.new(0, 592, 0, 430),
-		BackgroundColor3 = Color3.new(0, 0, 0),
-		BackgroundTransparency = 0.78,
-		BorderSizePixel = 0,
-		ZIndex = 0,
-		Parent = gui,
-	})
-	corner(backplate2, 24)
-
-	local backplate = create("Frame", {
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.5, 0, 0.5, 6),
-		Size = UDim2.new(0, 584, 0, 422),
-		BackgroundColor3 = THEME.Backplate,
-		BackgroundTransparency = 0.48,
-		BorderSizePixel = 0,
-		ZIndex = 0,
-		Parent = gui,
-	})
-	corner(backplate, 22)
-
 	local main = create("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.new(0.5, 0, 0.5, 0),
@@ -111,14 +85,20 @@ function Library:CreateWindow(title)
 		Parent = gui,
 	})
 	corner(main, 20)
-	local mainStroke = stroke(main, THEME.StrokeDark, 1, 0.28)
+	local mainStroke = stroke(main, THEME.StrokeDark, 2, 0.12)
 
 	task.spawn(function()
 		while gui.Parent do
-			tween(mainStroke, 1.8, {Color = THEME.StrokeLight, Transparency = 0.12}, Enum.EasingStyle.Sine)
-			task.wait(1.8)
-			tween(mainStroke, 1.8, {Color = THEME.StrokeDark, Transparency = 0.3}, Enum.EasingStyle.Sine)
-			task.wait(1.8)
+			tween(mainStroke, 1.6, {
+				Color = THEME.StrokeLight,
+				Transparency = 0.02
+			}, Enum.EasingStyle.Sine)
+			task.wait(1.6)
+			tween(mainStroke, 1.6, {
+				Color = THEME.StrokeDark,
+				Transparency = 0.16
+			}, Enum.EasingStyle.Sine)
+			task.wait(1.6)
 		end
 	end)
 
@@ -138,9 +118,9 @@ function Library:CreateWindow(title)
 		Parent = topBar,
 	})
 	corner(logoWrap, 12)
-	stroke(logoWrap, THEME.StrokeDark, 1, 0.5)
+	stroke(logoWrap, THEME.StrokeDark, 1, 0.45)
 
-	local logo = create("TextLabel", {
+	create("TextLabel", {
 		Size = UDim2.new(1, 0, 1, 0),
 		BackgroundTransparency = 1,
 		Text = "A",
@@ -151,7 +131,7 @@ function Library:CreateWindow(title)
 		Parent = logoWrap,
 	})
 
-	local titleLabel = create("TextLabel", {
+	create("TextLabel", {
 		BackgroundTransparency = 1,
 		Position = UDim2.new(0, 58, 0, 10),
 		Size = UDim2.new(1, -130, 0, 20),
@@ -164,7 +144,7 @@ function Library:CreateWindow(title)
 		Parent = topBar,
 	})
 
-	local subLabel = create("TextLabel", {
+	create("TextLabel", {
 		BackgroundTransparency = 1,
 		Position = UDim2.new(0, 58, 0, 31),
 		Size = UDim2.new(1, -130, 0, 14),
@@ -190,7 +170,7 @@ function Library:CreateWindow(title)
 		Parent = topBar,
 	})
 	corner(miniBtn, 10)
-	stroke(miniBtn, THEME.StrokeDark, 1, 0.55)
+	stroke(miniBtn, THEME.StrokeDark, 1, 0.5)
 	hoverButton(miniBtn, THEME.Card, THEME.CardHover)
 
 	local content = create("Frame", {
@@ -210,7 +190,7 @@ function Library:CreateWindow(title)
 		Parent = content,
 	})
 
-	local tabLayout = create("UIListLayout", {
+	create("UIListLayout", {
 		FillDirection = Enum.FillDirection.Horizontal,
 		HorizontalAlignment = Enum.HorizontalAlignment.Left,
 		Padding = UDim.new(0, 8),
@@ -226,7 +206,7 @@ function Library:CreateWindow(title)
 		Parent = content,
 	})
 	corner(pageHolder, 16)
-	stroke(pageHolder, THEME.StrokeDark, 1, 0.72)
+	stroke(pageHolder, THEME.StrokeDark, 1, 0.7)
 
 	local dragging = false
 	local dragStart, startPos
@@ -242,16 +222,12 @@ function Library:CreateWindow(title)
 	UIS.InputChanged:Connect(function(input)
 		if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
 			local delta = input.Position - dragStart
-			local newPos = UDim2.new(
+			main.Position = UDim2.new(
 				startPos.X.Scale,
 				startPos.X.Offset + delta.X,
 				startPos.Y.Scale,
 				startPos.Y.Offset + delta.Y
 			)
-
-			main.Position = newPos
-			backplate.Position = UDim2.new(newPos.X.Scale, newPos.X.Offset, newPos.Y.Scale, newPos.Y.Offset + 6)
-			backplate2.Position = UDim2.new(newPos.X.Scale, newPos.X.Offset, newPos.Y.Scale, newPos.Y.Offset + 10)
 		end
 	end)
 
@@ -271,13 +247,9 @@ function Library:CreateWindow(title)
 			content.Visible = false
 			miniBtn.Text = "+"
 			tween(main, 0.25, {Size = minimizedMain})
-			tween(backplate, 0.25, {Size = UDim2.new(0, 584, 0, 70)})
-			tween(backplate2, 0.25, {Size = UDim2.new(0, 592, 0, 78)})
 		else
 			miniBtn.Text = "–"
 			tween(main, 0.25, {Size = expandedMain})
-			tween(backplate, 0.25, {Size = UDim2.new(0, 584, 0, 422)})
-			tween(backplate2, 0.25, {Size = UDim2.new(0, 592, 0, 430)})
 			task.delay(0.12, function()
 				content.Visible = true
 			end)
@@ -428,9 +400,9 @@ function Library:CreateWindow(title)
 				AnchorPoint = Vector2.new(1, 0.5),
 				Position = UDim2.new(1, -14, 0.5, 0),
 				Size = UDim2.new(0, 20, 0, 20),
-				Text = "›",
+				Text = ">",
 				Font = Enum.Font.GothamBold,
-				TextSize = 18,
+				TextSize = 16,
 				TextColor3 = THEME.SubText,
 				Parent = holder,
 			})
@@ -582,7 +554,7 @@ function Library:CreateWindow(title)
 				Parent = holder,
 			})
 
-			create("TextLabel", {
+			local valueLabel = create("TextLabel", {
 				BackgroundTransparency = 1,
 				Position = UDim2.new(0, 14, 0, 0),
 				Size = UDim2.new(1, -44, 0, 44),
@@ -598,11 +570,12 @@ function Library:CreateWindow(title)
 				BackgroundTransparency = 1,
 				AnchorPoint = Vector2.new(1, 0.5),
 				Position = UDim2.new(1, -14, 0.5, 0),
-				Size = UDim2.new(0, 20, 0, 20),
-				Text = "⌄",
+				Size = UDim2.new(0, 18, 0, 18),
+				Text = ">",
 				Font = Enum.Font.GothamBold,
-				TextSize = 16,
+				TextSize = 14,
 				TextColor3 = THEME.SubText,
+				Rotation = 90,
 				Parent = holder,
 			})
 
@@ -613,7 +586,7 @@ function Library:CreateWindow(title)
 				Parent = holder,
 			})
 
-			local listLayout = create("UIListLayout", {
+			create("UIListLayout", {
 				Padding = UDim.new(0, 6),
 				Parent = listHolder,
 			})
@@ -642,6 +615,7 @@ function Library:CreateWindow(title)
 				end)
 
 				itemBtn.MouseButton1Click:Connect(function()
+					valueLabel.Text = item
 					if callback then
 						callback(item)
 					end
@@ -671,7 +645,7 @@ function Library:CreateWindow(title)
 					Size = opened and UDim2.new(1, -20, 0, getOpenHeight() - 54) or UDim2.new(1, -20, 0, 0)
 				})
 				tween(arrow, 0.22, {
-					Rotation = opened and 180 or 0
+					Rotation = opened and 270 or 90
 				})
 				tween(holder, 0.18, {
 					BackgroundColor3 = opened and THEME.CardHover or THEME.Card
