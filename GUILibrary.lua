@@ -9,64 +9,66 @@ Library.__index = Library
 
 local THEME = {
 	Bg = Color3.fromRGB(8, 10, 18),
-	Panel = Color3.fromRGB(12, 15, 26),
-	Card = Color3.fromRGB(20, 23, 36),
-	CardHover = Color3.fromRGB(28, 32, 48),
-	Stroke = Color3.fromRGB(72, 84, 140),
+	Panel = Color3.fromRGB(11, 14, 24),
+	Card = Color3.fromRGB(18, 22, 34),
+	CardHover = Color3.fromRGB(24, 29, 44),
+	StrokeDark = Color3.fromRGB(58, 66, 104),
+	StrokeLight = Color3.fromRGB(92, 104, 156),
 	Text = Color3.fromRGB(240, 243, 255),
-	SubText = Color3.fromRGB(155, 163, 190),
-	Accent = Color3.fromRGB(120, 92, 255),
-	Accent2 = Color3.fromRGB(82, 132, 255),
+	SubText = Color3.fromRGB(150, 158, 188),
+	Accent = Color3.fromRGB(125, 92, 255),
+	AccentSoft = Color3.fromRGB(94, 79, 170),
+	ToggleOff = Color3.fromRGB(60, 65, 82),
 	Green = Color3.fromRGB(70, 190, 120),
-	Red = Color3.fromRGB(190, 70, 90),
+	Backplate = Color3.fromRGB(3, 4, 10),
 }
 
-local function tween(obj, time, props, style, dir)
-	local info = TweenInfo.new(time or 0.2, style or Enum.EasingStyle.Quint, dir or Enum.EasingDirection.Out)
+local function tween(obj, time, props, style, direction)
+	local info = TweenInfo.new(time or 0.2, style or Enum.EasingStyle.Quint, direction or Enum.EasingDirection.Out)
 	local t = TS:Create(obj, info, props)
 	t:Play()
 	return t
 end
 
-local function create(class, props)
-	local inst = Instance.new(class)
+local function create(className, props)
+	local obj = Instance.new(className)
 	for k, v in pairs(props or {}) do
-		inst[k] = v
+		obj[k] = v
 	end
-	return inst
+	return obj
 end
 
-local function addCorner(obj, radius)
+local function corner(obj, radius)
 	local c = Instance.new("UICorner")
 	c.CornerRadius = UDim.new(0, radius or 10)
 	c.Parent = obj
 	return c
 end
 
-local function addStroke(obj, color, thickness, transparency)
+local function stroke(obj, color, thickness, transparency)
 	local s = Instance.new("UIStroke")
-	s.Color = color or THEME.Stroke
+	s.Color = color or THEME.StrokeDark
 	s.Thickness = thickness or 1
-	s.Transparency = transparency == nil and 0.35 or transparency
+	s.Transparency = transparency == nil and 0.4 or transparency
 	s.Parent = obj
 	return s
 end
 
-local function makeButtonHover(btn, normal, hover)
+local function hoverButton(btn, normalColor, hoverColor)
 	btn.MouseEnter:Connect(function()
-		tween(btn, 0.18, {BackgroundColor3 = hover})
+		tween(btn, 0.18, {BackgroundColor3 = hoverColor})
 	end)
 	btn.MouseLeave:Connect(function()
-		tween(btn, 0.18, {BackgroundColor3 = normal})
+		tween(btn, 0.18, {BackgroundColor3 = normalColor})
 	end)
 end
 
 function Library:CreateWindow(title)
 	local toggleKey = Enum.KeyCode.RightShift
-	local waitingForKey = false
 	local minimized = false
 	local currentTab = nil
 	local tabs = {}
+	local waitingForKey = false
 
 	local gui = create("ScreenGui", {
 		Name = "AloHubUI",
@@ -75,70 +77,70 @@ function Library:CreateWindow(title)
 		Parent = player:WaitForChild("PlayerGui"),
 	})
 
-	local shadow = create("ImageLabel", {
-		Name = "Shadow",
+	local backplate2 = create("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		BackgroundTransparency = 1,
-		Image = "rbxassetid://1316045217",
-		ImageColor3 = Color3.new(0, 0, 0),
-		ImageTransparency = 0.45,
-		ScaleType = Enum.ScaleType.Slice,
-		SliceCenter = Rect.new(10, 10, 118, 118),
-		Size = UDim2.new(0, 620, 0, 470),
-		Position = UDim2.new(0.5, 0, 0.5, 0),
+		Position = UDim2.new(0.5, 0, 0.5, 10),
+		Size = UDim2.new(0, 592, 0, 430),
+		BackgroundColor3 = Color3.new(0, 0, 0),
+		BackgroundTransparency = 0.78,
+		BorderSizePixel = 0,
 		ZIndex = 0,
 		Parent = gui,
 	})
+	corner(backplate2, 24)
+
+	local backplate = create("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.new(0.5, 0, 0.5, 6),
+		Size = UDim2.new(0, 584, 0, 422),
+		BackgroundColor3 = THEME.Backplate,
+		BackgroundTransparency = 0.48,
+		BorderSizePixel = 0,
+		ZIndex = 0,
+		Parent = gui,
+	})
+	corner(backplate, 22)
 
 	local main = create("Frame", {
-		Name = "Main",
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Size = UDim2.new(0, 560, 0, 390),
 		Position = UDim2.new(0.5, 0, 0.5, 0),
+		Size = UDim2.new(0, 576, 0, 414),
 		BackgroundColor3 = THEME.Bg,
 		BorderSizePixel = 0,
 		ZIndex = 1,
 		Parent = gui,
 	})
-	addCorner(main, 18)
-	addStroke(main, THEME.Stroke, 1, 0.45)
+	corner(main, 20)
+	local mainStroke = stroke(main, THEME.StrokeDark, 1, 0.28)
 
-	local glow = create("Frame", {
-		Name = "Glow",
-		Size = UDim2.new(1, 0, 0, 2),
-		BackgroundColor3 = THEME.Accent,
-		BorderSizePixel = 0,
-		ZIndex = 3,
-		Parent = main,
-	})
-	local glowGrad = create("UIGradient", {
-		Color = ColorSequence.new({
-			ColorSequenceKeypoint.new(0, THEME.Accent),
-			ColorSequenceKeypoint.new(1, THEME.Accent2),
-		}),
-		Parent = glow,
-	})
+	task.spawn(function()
+		while gui.Parent do
+			tween(mainStroke, 1.8, {Color = THEME.StrokeLight, Transparency = 0.12}, Enum.EasingStyle.Sine)
+			task.wait(1.8)
+			tween(mainStroke, 1.8, {Color = THEME.StrokeDark, Transparency = 0.3}, Enum.EasingStyle.Sine)
+			task.wait(1.8)
+		end
+	end)
 
-	local top = create("Frame", {
-		Name = "TopBar",
-		Size = UDim2.new(1, 0, 0, 56),
+	local topBar = create("Frame", {
+		Size = UDim2.new(1, 0, 0, 62),
 		BackgroundTransparency = 1,
 		ZIndex = 2,
 		Parent = main,
 	})
 
-	local iconWrap = create("Frame", {
-		Size = UDim2.new(0, 32, 0, 32),
-		Position = UDim2.new(0, 16, 0.5, -16),
+	local logoWrap = create("Frame", {
+		Position = UDim2.new(0, 14, 0.5, -18),
+		Size = UDim2.new(0, 36, 0, 36),
 		BackgroundColor3 = THEME.Card,
 		BorderSizePixel = 0,
 		ZIndex = 3,
-		Parent = top,
+		Parent = topBar,
 	})
-	addCorner(iconWrap, 10)
-	addStroke(iconWrap, THEME.Stroke, 1, 0.55)
+	corner(logoWrap, 12)
+	stroke(logoWrap, THEME.StrokeDark, 1, 0.5)
 
-	local icon = create("TextLabel", {
+	local logo = create("TextLabel", {
 		Size = UDim2.new(1, 0, 1, 0),
 		BackgroundTransparency = 1,
 		Text = "A",
@@ -146,38 +148,38 @@ function Library:CreateWindow(title)
 		TextSize = 16,
 		TextColor3 = THEME.Accent,
 		ZIndex = 4,
-		Parent = iconWrap,
+		Parent = logoWrap,
 	})
 
 	local titleLabel = create("TextLabel", {
 		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 58, 0, 8),
-		Size = UDim2.new(1, -150, 0, 22),
+		Position = UDim2.new(0, 58, 0, 10),
+		Size = UDim2.new(1, -130, 0, 20),
 		Text = title or "Alo Hub",
 		Font = Enum.Font.GothamBold,
 		TextSize = 20,
 		TextColor3 = THEME.Text,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		ZIndex = 3,
-		Parent = top,
+		Parent = topBar,
 	})
 
 	local subLabel = create("TextLabel", {
 		BackgroundTransparency = 1,
-		Position = UDim2.new(0, 58, 0, 29),
-		Size = UDim2.new(1, -150, 0, 16),
+		Position = UDim2.new(0, 58, 0, 31),
+		Size = UDim2.new(1, -130, 0, 14),
 		Text = "Modern UI Framework",
 		Font = Enum.Font.Gotham,
 		TextSize = 11,
 		TextColor3 = THEME.SubText,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		ZIndex = 3,
-		Parent = top,
+		Parent = topBar,
 	})
 
 	local miniBtn = create("TextButton", {
 		Size = UDim2.new(0, 34, 0, 34),
-		Position = UDim2.new(1, -50, 0.5, -17),
+		Position = UDim2.new(1, -48, 0.5, -17),
 		BackgroundColor3 = THEME.Card,
 		Text = "–",
 		Font = Enum.Font.GothamBold,
@@ -185,25 +187,24 @@ function Library:CreateWindow(title)
 		TextColor3 = THEME.Text,
 		AutoButtonColor = false,
 		ZIndex = 4,
-		Parent = top,
+		Parent = topBar,
 	})
-	addCorner(miniBtn, 10)
-	addStroke(miniBtn, THEME.Stroke, 1, 0.55)
-	makeButtonHover(miniBtn, THEME.Card, THEME.CardHover)
+	corner(miniBtn, 10)
+	stroke(miniBtn, THEME.StrokeDark, 1, 0.55)
+	hoverButton(miniBtn, THEME.Card, THEME.CardHover)
 
 	local content = create("Frame", {
 		Name = "Content",
-		Position = UDim2.new(0, 0, 0, 56),
-		Size = UDim2.new(1, 0, 1, -56),
+		Position = UDim2.new(0, 0, 0, 62),
+		Size = UDim2.new(1, 0, 1, -62),
 		BackgroundTransparency = 1,
 		ZIndex = 2,
 		Parent = main,
 	})
 
 	local tabBar = create("Frame", {
-		Name = "TabBar",
-		Position = UDim2.new(0, 14, 0, 8),
-		Size = UDim2.new(1, -28, 0, 38),
+		Position = UDim2.new(0, 14, 0, 6),
+		Size = UDim2.new(1, -28, 0, 40),
 		BackgroundTransparency = 1,
 		ZIndex = 2,
 		Parent = content,
@@ -217,21 +218,20 @@ function Library:CreateWindow(title)
 	})
 
 	local pageHolder = create("Frame", {
-		Name = "PageHolder",
 		Position = UDim2.new(0, 14, 0, 54),
-		Size = UDim2.new(1, -28, 1, -64),
+		Size = UDim2.new(1, -28, 1, -68),
 		BackgroundColor3 = THEME.Panel,
 		BorderSizePixel = 0,
 		ZIndex = 2,
 		Parent = content,
 	})
-	addCorner(pageHolder, 14)
-	addStroke(pageHolder, THEME.Stroke, 1, 0.7)
+	corner(pageHolder, 16)
+	stroke(pageHolder, THEME.StrokeDark, 1, 0.72)
 
 	local dragging = false
 	local dragStart, startPos
 
-	top.InputBegan:Connect(function(input)
+	topBar.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 then
 			dragging = true
 			dragStart = input.Position
@@ -242,13 +242,16 @@ function Library:CreateWindow(title)
 	UIS.InputChanged:Connect(function(input)
 		if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
 			local delta = input.Position - dragStart
-			main.Position = UDim2.new(
+			local newPos = UDim2.new(
 				startPos.X.Scale,
 				startPos.X.Offset + delta.X,
 				startPos.Y.Scale,
 				startPos.Y.Offset + delta.Y
 			)
-			shadow.Position = main.Position
+
+			main.Position = newPos
+			backplate.Position = UDim2.new(newPos.X.Scale, newPos.X.Offset, newPos.Y.Scale, newPos.Y.Offset + 6)
+			backplate2.Position = UDim2.new(newPos.X.Scale, newPos.X.Offset, newPos.Y.Scale, newPos.Y.Offset + 10)
 		end
 	end)
 
@@ -258,8 +261,8 @@ function Library:CreateWindow(title)
 		end
 	end)
 
-	local expandedSize = UDim2.new(0, 560, 0, 390)
-	local minimizedSize = UDim2.new(0, 560, 0, 56)
+	local expandedMain = UDim2.new(0, 576, 0, 414)
+	local minimizedMain = UDim2.new(0, 576, 0, 62)
 
 	miniBtn.MouseButton1Click:Connect(function()
 		minimized = not minimized
@@ -267,12 +270,14 @@ function Library:CreateWindow(title)
 		if minimized then
 			content.Visible = false
 			miniBtn.Text = "+"
-			tween(main, 0.25, {Size = minimizedSize})
-			tween(shadow, 0.25, {Size = UDim2.new(0, 620, 0, 140)})
+			tween(main, 0.25, {Size = minimizedMain})
+			tween(backplate, 0.25, {Size = UDim2.new(0, 584, 0, 70)})
+			tween(backplate2, 0.25, {Size = UDim2.new(0, 592, 0, 78)})
 		else
 			miniBtn.Text = "–"
-			tween(main, 0.25, {Size = expandedSize})
-			tween(shadow, 0.25, {Size = UDim2.new(0, 620, 0, 470)})
+			tween(main, 0.25, {Size = expandedMain})
+			tween(backplate, 0.25, {Size = UDim2.new(0, 584, 0, 422)})
+			tween(backplate2, 0.25, {Size = UDim2.new(0, 592, 0, 430)})
 			task.delay(0.12, function()
 				content.Visible = true
 			end)
@@ -283,14 +288,7 @@ function Library:CreateWindow(title)
 		if gpe then
 			return
 		end
-		if waitingForKey then
-			if input.UserInputType == Enum.UserInputType.Keyboard then
-				toggleKey = input.KeyCode
-				waitingForKey = false
-			end
-			return
-		end
-		if input.KeyCode == toggleKey then
+		if input.KeyCode == toggleKey and not waitingForKey then
 			gui.Enabled = not gui.Enabled
 		end
 	end)
@@ -304,37 +302,26 @@ function Library:CreateWindow(title)
 
 		for _, tab in ipairs(tabs) do
 			tab.Page.Visible = false
-			tween(tab.Button, 0.18, {
-				BackgroundColor3 = THEME.Card,
-			})
-			tween(tab.Title, 0.18, {
-				TextColor3 = THEME.SubText,
-			})
+			tween(tab.Button, 0.16, {BackgroundColor3 = THEME.Card})
+			tween(tab.Title, 0.16, {TextColor3 = THEME.SubText})
 		end
 
 		currentTab = tabObj
 		tabObj.Page.Visible = true
-		tabObj.Page.BackgroundTransparency = 1
-		tween(tabObj.Page, 0.18, {BackgroundTransparency = 0.999})
-
-		tween(tabObj.Button, 0.18, {
-			BackgroundColor3 = Color3.fromRGB(28, 23, 44),
-		})
-		tween(tabObj.Title, 0.18, {
-			TextColor3 = THEME.Accent,
-		})
+		tween(tabObj.Button, 0.16, {BackgroundColor3 = Color3.fromRGB(28, 23, 44)})
+		tween(tabObj.Title, 0.16, {TextColor3 = THEME.Accent})
 	end
 
 	function window:CreateTab(name)
 		local btn = create("TextButton", {
-			Size = UDim2.new(0, 110, 1, 0),
+			Size = UDim2.new(0, 108, 1, 0),
 			BackgroundColor3 = THEME.Card,
 			Text = "",
 			AutoButtonColor = false,
 			Parent = tabBar,
 		})
-		addCorner(btn, 10)
-		addStroke(btn, THEME.Stroke, 1, 0.75)
+		corner(btn, 10)
+		stroke(btn, THEME.StrokeDark, 1, 0.78)
 
 		local btnTitle = create("TextLabel", {
 			BackgroundTransparency = 1,
@@ -350,8 +337,8 @@ function Library:CreateWindow(title)
 		local page = create("ScrollingFrame", {
 			Name = name .. "_Page",
 			Size = UDim2.new(1, 0, 1, 0),
-			CanvasSize = UDim2.new(0, 0, 0, 0),
 			AutomaticCanvasSize = Enum.AutomaticSize.Y,
+			CanvasSize = UDim2.new(0, 0, 0, 0),
 			ScrollBarThickness = 3,
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
@@ -359,7 +346,7 @@ function Library:CreateWindow(title)
 			Parent = pageHolder,
 		})
 
-		local pagePadding = create("UIPadding", {
+		create("UIPadding", {
 			PaddingTop = UDim.new(0, 14),
 			PaddingLeft = UDim.new(0, 14),
 			PaddingRight = UDim.new(0, 14),
@@ -367,7 +354,7 @@ function Library:CreateWindow(title)
 			Parent = page,
 		})
 
-		local pageLayout = create("UIListLayout", {
+		create("UIListLayout", {
 			Padding = UDim.new(0, 10),
 			SortOrder = Enum.SortOrder.LayoutOrder,
 			Parent = page,
@@ -382,15 +369,15 @@ function Library:CreateWindow(title)
 
 		btn.MouseEnter:Connect(function()
 			if currentTab ~= tabObj then
-				tween(btn, 0.18, {BackgroundColor3 = THEME.CardHover})
-				tween(btnTitle, 0.18, {TextColor3 = THEME.Text})
+				tween(btn, 0.16, {BackgroundColor3 = THEME.CardHover})
+				tween(btnTitle, 0.16, {TextColor3 = THEME.Text})
 			end
 		end)
 
 		btn.MouseLeave:Connect(function()
 			if currentTab ~= tabObj then
-				tween(btn, 0.18, {BackgroundColor3 = THEME.Card})
-				tween(btnTitle, 0.18, {TextColor3 = THEME.SubText})
+				tween(btn, 0.16, {BackgroundColor3 = THEME.Card})
+				tween(btnTitle, 0.16, {TextColor3 = THEME.SubText})
 			end
 		end)
 
@@ -401,8 +388,8 @@ function Library:CreateWindow(title)
 		local tab = {}
 
 		function tab:AddSection(text)
-			local label = create("TextLabel", {
-				Size = UDim2.new(1, 0, 0, 18),
+			return create("TextLabel", {
+				Size = UDim2.new(1, 0, 0, 16),
 				BackgroundTransparency = 1,
 				Text = string.upper(text),
 				Font = Enum.Font.GothamBold,
@@ -411,7 +398,6 @@ function Library:CreateWindow(title)
 				TextXAlignment = Enum.TextXAlignment.Left,
 				Parent = page,
 			})
-			return label
 		end
 
 		function tab:AddButton(text, callback)
@@ -422,13 +408,13 @@ function Library:CreateWindow(title)
 				AutoButtonColor = false,
 				Parent = page,
 			})
-			addCorner(holder, 12)
-			addStroke(holder, THEME.Stroke, 1, 0.75)
+			corner(holder, 12)
+			stroke(holder, THEME.StrokeDark, 1, 0.78)
 
-			local label = create("TextLabel", {
+			create("TextLabel", {
 				BackgroundTransparency = 1,
 				Position = UDim2.new(0, 14, 0, 0),
-				Size = UDim2.new(1, -28, 1, 0),
+				Size = UDim2.new(1, -40, 1, 0),
 				Text = text,
 				Font = Enum.Font.GothamMedium,
 				TextSize = 13,
@@ -459,14 +445,6 @@ function Library:CreateWindow(title)
 				tween(chevron, 0.18, {TextColor3 = THEME.SubText})
 			end)
 
-			holder.MouseButton1Down:Connect(function()
-				tween(holder, 0.08, {Size = UDim2.new(1, 0, 0, 41)})
-			end)
-
-			holder.MouseButton1Up:Connect(function()
-				tween(holder, 0.08, {Size = UDim2.new(1, 0, 0, 44)})
-			end)
-
 			holder.MouseButton1Click:Connect(function()
 				if callback then
 					callback()
@@ -486,10 +464,10 @@ function Library:CreateWindow(title)
 				AutoButtonColor = false,
 				Parent = page,
 			})
-			addCorner(holder, 12)
-			addStroke(holder, THEME.Stroke, 1, 0.75)
+			corner(holder, 12)
+			stroke(holder, THEME.StrokeDark, 1, 0.78)
 
-			local label = create("TextLabel", {
+			create("TextLabel", {
 				BackgroundTransparency = 1,
 				Position = UDim2.new(0, 14, 0, 0),
 				Size = UDim2.new(1, -80, 1, 0),
@@ -505,10 +483,10 @@ function Library:CreateWindow(title)
 				AnchorPoint = Vector2.new(1, 0.5),
 				Position = UDim2.new(1, -14, 0.5, 0),
 				Size = UDim2.new(0, 42, 0, 22),
-				BackgroundColor3 = state and THEME.Accent or Color3.fromRGB(60, 65, 82),
+				BackgroundColor3 = state and THEME.AccentSoft or THEME.ToggleOff,
 				Parent = holder,
 			})
-			addCorner(switch, 99)
+			corner(switch, 99)
 
 			local knob = create("Frame", {
 				Size = UDim2.new(0, 18, 0, 18),
@@ -516,7 +494,7 @@ function Library:CreateWindow(title)
 				BackgroundColor3 = Color3.fromRGB(255, 255, 255),
 				Parent = switch,
 			})
-			addCorner(knob, 99)
+			corner(knob, 99)
 
 			holder.MouseEnter:Connect(function()
 				tween(holder, 0.18, {BackgroundColor3 = THEME.CardHover})
@@ -529,10 +507,10 @@ function Library:CreateWindow(title)
 			local function setState(v)
 				state = v
 				tween(switch, 0.18, {
-					BackgroundColor3 = state and THEME.Accent or Color3.fromRGB(60, 65, 82),
+					BackgroundColor3 = state and THEME.AccentSoft or THEME.ToggleOff
 				})
 				tween(knob, 0.18, {
-					Position = state and UDim2.new(1, -20, 0.5, -9) or UDim2.new(0, 2, 0.5, -9),
+					Position = state and UDim2.new(1, -20, 0.5, -9) or UDim2.new(0, 2, 0.5, -9)
 				})
 				if callback then
 					callback(state)
@@ -543,7 +521,9 @@ function Library:CreateWindow(title)
 				setState(not state)
 			end)
 
-			setState(state)
+			if callback then
+				callback(state)
+			end
 
 			return {
 				Set = setState,
@@ -559,8 +539,8 @@ function Library:CreateWindow(title)
 				BackgroundColor3 = THEME.Card,
 				Parent = page,
 			})
-			addCorner(holder, 12)
-			addStroke(holder, THEME.Stroke, 1, 0.8)
+			corner(holder, 12)
+			stroke(holder, THEME.StrokeDark, 1, 0.8)
 
 			local label = create("TextLabel", {
 				BackgroundTransparency = 1,
@@ -581,6 +561,126 @@ function Library:CreateWindow(title)
 			}
 		end
 
+		function tab:AddDropdown(text, items, callback)
+			local opened = false
+			items = items or {}
+
+			local holder = create("Frame", {
+				Size = UDim2.new(1, 0, 0, 44),
+				BackgroundColor3 = THEME.Card,
+				ClipsDescendants = true,
+				Parent = page,
+			})
+			corner(holder, 12)
+			stroke(holder, THEME.StrokeDark, 1, 0.78)
+
+			local topButton = create("TextButton", {
+				Size = UDim2.new(1, 0, 0, 44),
+				BackgroundTransparency = 1,
+				Text = "",
+				AutoButtonColor = false,
+				Parent = holder,
+			})
+
+			create("TextLabel", {
+				BackgroundTransparency = 1,
+				Position = UDim2.new(0, 14, 0, 0),
+				Size = UDim2.new(1, -44, 0, 44),
+				Text = text,
+				Font = Enum.Font.GothamMedium,
+				TextSize = 13,
+				TextColor3 = THEME.Text,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				Parent = holder,
+			})
+
+			local arrow = create("TextLabel", {
+				BackgroundTransparency = 1,
+				AnchorPoint = Vector2.new(1, 0.5),
+				Position = UDim2.new(1, -14, 0.5, 0),
+				Size = UDim2.new(0, 20, 0, 20),
+				Text = "⌄",
+				Font = Enum.Font.GothamBold,
+				TextSize = 16,
+				TextColor3 = THEME.SubText,
+				Parent = holder,
+			})
+
+			local listHolder = create("Frame", {
+				Position = UDim2.new(0, 10, 0, 48),
+				Size = UDim2.new(1, -20, 0, 0),
+				BackgroundTransparency = 1,
+				Parent = holder,
+			})
+
+			local listLayout = create("UIListLayout", {
+				Padding = UDim.new(0, 6),
+				Parent = listHolder,
+			})
+
+			for _, item in ipairs(items) do
+				local itemBtn = create("TextButton", {
+					Size = UDim2.new(1, 0, 0, 34),
+					BackgroundColor3 = Color3.fromRGB(22, 26, 40),
+					Text = item,
+					Font = Enum.Font.Gotham,
+					TextSize = 12,
+					TextColor3 = THEME.SubText,
+					AutoButtonColor = false,
+					Parent = listHolder,
+				})
+				corner(itemBtn, 10)
+
+				itemBtn.MouseEnter:Connect(function()
+					tween(itemBtn, 0.16, {BackgroundColor3 = Color3.fromRGB(28, 34, 52)})
+					tween(itemBtn, 0.16, {TextColor3 = THEME.Text})
+				end)
+
+				itemBtn.MouseLeave:Connect(function()
+					tween(itemBtn, 0.16, {BackgroundColor3 = Color3.fromRGB(22, 26, 40)})
+					tween(itemBtn, 0.16, {TextColor3 = THEME.SubText})
+				end)
+
+				itemBtn.MouseButton1Click:Connect(function()
+					if callback then
+						callback(item)
+					end
+				end)
+			end
+
+			local function getOpenHeight()
+				return 44 + 10 + (#items * 34) + (math.max(#items - 1, 0) * 6) + 10
+			end
+
+			topButton.MouseEnter:Connect(function()
+				tween(holder, 0.18, {BackgroundColor3 = THEME.CardHover})
+			end)
+
+			topButton.MouseLeave:Connect(function()
+				if not opened then
+					tween(holder, 0.18, {BackgroundColor3 = THEME.Card})
+				end
+			end)
+
+			topButton.MouseButton1Click:Connect(function()
+				opened = not opened
+				tween(holder, 0.22, {
+					Size = opened and UDim2.new(1, 0, 0, getOpenHeight()) or UDim2.new(1, 0, 0, 44)
+				})
+				tween(listHolder, 0.22, {
+					Size = opened and UDim2.new(1, -20, 0, getOpenHeight() - 54) or UDim2.new(1, -20, 0, 0)
+				})
+				tween(arrow, 0.22, {
+					Rotation = opened and 180 or 0
+				})
+				tween(holder, 0.18, {
+					BackgroundColor3 = opened and THEME.CardHover or THEME.Card
+				})
+			end)
+
+			return holder
+		end
+
 		function tab:AddKeybindRow(text, defaultKey, onChanged)
 			local currentKey = defaultKey or toggleKey
 
@@ -589,10 +689,10 @@ function Library:CreateWindow(title)
 				BackgroundColor3 = THEME.Card,
 				Parent = page,
 			})
-			addCorner(holder, 12)
-			addStroke(holder, THEME.Stroke, 1, 0.75)
+			corner(holder, 12)
+			stroke(holder, THEME.StrokeDark, 1, 0.78)
 
-			local leftTitle = create("TextLabel", {
+			create("TextLabel", {
 				BackgroundTransparency = 1,
 				Position = UDim2.new(0, 14, 0, 8),
 				Size = UDim2.new(1, -160, 0, 16),
@@ -604,7 +704,7 @@ function Library:CreateWindow(title)
 				Parent = holder,
 			})
 
-			local leftSub = create("TextLabel", {
+			create("TextLabel", {
 				BackgroundTransparency = 1,
 				Position = UDim2.new(0, 14, 0, 26),
 				Size = UDim2.new(1, -160, 0, 14),
@@ -628,14 +728,15 @@ function Library:CreateWindow(title)
 				AutoButtonColor = false,
 				Parent = holder,
 			})
-			addCorner(keyBtn, 10)
-			addStroke(keyBtn, THEME.Stroke, 1, 0.65)
-			makeButtonHover(keyBtn, Color3.fromRGB(26, 30, 46), Color3.fromRGB(36, 41, 61))
+			corner(keyBtn, 10)
+			stroke(keyBtn, THEME.StrokeDark, 1, 0.65)
+			hoverButton(keyBtn, Color3.fromRGB(26, 30, 46), Color3.fromRGB(36, 41, 61))
 
 			keyBtn.MouseButton1Click:Connect(function()
 				if waitingForKey then
 					return
 				end
+
 				waitingForKey = true
 				keyBtn.Text = "..."
 				tween(keyBtn, 0.15, {BackgroundColor3 = Color3.fromRGB(44, 35, 78)})
@@ -662,15 +763,7 @@ function Library:CreateWindow(title)
 				onChanged(currentKey)
 			end
 
-			return {
-				Set = function(_, newKey)
-					currentKey = newKey
-					keyBtn.Text = newKey.Name
-					if onChanged then
-						onChanged(newKey)
-					end
-				end
-			}
+			return holder
 		end
 
 		if not currentTab then
