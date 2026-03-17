@@ -2,15 +2,14 @@ return function(app)
     local TweenService = game:GetService("TweenService")
     local Players = game:GetService("Players")
     local Workspace = game:GetService("Workspace")
-    local RunService = game:GetService("RunService")
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
     local player = Players.LocalPlayer
     local autoMove = false
     local autoAttack = false
     local currentTween = nil
-    local noclipConnection = nil
 
+    local moveMode = "Tween"
     local tweenSpeed = 60
     local offsetMode = "Above"
     local offsetDistance = 3
@@ -30,42 +29,6 @@ return function(app)
     local function getHumanoid()
         local char = getCharacter()
         return char:FindFirstChildOfClass("Humanoid")
-    end
-
-    local function setNoclip(enabled)
-        local char = player.Character
-        if not char then
-            return
-        end
-
-        for _, obj in ipairs(char:GetDescendants()) do
-            if obj:IsA("BasePart") then
-                obj.CanCollide = not enabled
-            end
-        end
-    end
-
-    local function startNoclip()
-        if noclipConnection then
-            return
-        end
-
-        setNoclip(true)
-
-        noclipConnection = RunService.Stepped:Connect(function()
-            if autoMove then
-                setNoclip(true)
-            end
-        end)
-    end
-
-    local function stopNoclip()
-        if noclipConnection then
-            noclipConnection:Disconnect()
-            noclipConnection = nil
-        end
-
-        setNoclip(false)
     end
 
     local function getMobPos(mob)
@@ -122,7 +85,7 @@ return function(app)
         return Vector3.new(0, distance, 0)
     end
 
-    local function tweenToMob(mob)
+    local function moveToMob(mob)
         local root = getRoot()
         local humanoid = getHumanoid()
         local mobCF = getMobCF(mob)
@@ -130,21 +93,28 @@ return function(app)
             return
         end
 
+        local targetPos = mobCF.Position + getOffsetFromTarget(mobCF, offsetMode, offsetDistance)
+        local targetCF = CFrame.new(targetPos, mobCF.Position)
+
         if currentTween then
             currentTween:Cancel()
             currentTween = nil
+        end
+
+        if moveMode == "Teleport" then
+            root.CFrame = targetCF
+            return
         end
 
         if humanoid then
             humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
         end
 
-        local targetPos = mobCF.Position + getOffsetFromTarget(mobCF, offsetMode, offsetDistance)
         local distance = (targetPos - root.Position).Magnitude
         local duration = math.max(distance / math.max(tweenSpeed, 1), 0.05)
 
         currentTween = TweenService:Create(root, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
-            CFrame = CFrame.new(targetPos, mobCF.Position)
+            CFrame = targetCF
         })
 
         currentTween:Play()
@@ -184,15 +154,15 @@ return function(app)
         autoMove = state
         print("Auto Move:", state)
 
-        if state then
-            startNoclip()
-        else
-            if currentTween then
-                currentTween:Cancel()
-                currentTween = nil
-            end
-            stopNoclip()
+        if not state and currentTween then
+            currentTween:Cancel()
+            currentTween = nil
         end
+    end)
+
+    tab:AddDropdown("Mode", {"Tween", "Teleport"}, function(selected)
+        moveMode = selected
+        print("Move Mode:", selected)
     end)
 
     tab:AddSlider("Tween Speed", 10, 300, tweenSpeed, function(value)
@@ -227,7 +197,7 @@ return function(app)
             if autoMove then
                 local mob = getNearestMob()
                 if mob then
-                    tweenToMob(mob)
+                    moveToMob(mob)
                 end
             end
             task.wait(0.35)
@@ -243,13 +213,6 @@ return function(app)
                 end
             end
             task.wait(1 / math.max(attackSpeed, 1))
-        end
-    end)
-
-    player.CharacterAdded:Connect(function()
-        task.wait(1)
-        if autoMove then
-            startNoclip()
         end
     end)
 
