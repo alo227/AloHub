@@ -8,6 +8,11 @@ return function(app)
 	tab:AddLabel("License Status: " .. (app.State.LicenseStatus or "Free"))
 	tab:AddLabel("Authenticated: " .. tostring(app.State.IsAuthenticated))
 
+	tab:AddSection("Game Info")
+
+	tab:AddLabel("PlaceId: " .. tostring(game.PlaceId or ""))
+	tab:AddLabel("GameId: " .. tostring(game.GameId or ""))
+
 	tab:AddSection("Actions")
 
 	tab:AddButton("Refresh Account Placeholder", function()
