@@ -71,6 +71,11 @@ function AloHubApp:LoadSessionTabs()
 end
 
 function AloHubApp:LoadGameTab()
+	print("AUTH:", self.State.IsAuthenticated)
+	print("game.PlaceId:", game.PlaceId)
+	print("game.GameId:", game.GameId)
+	print("Mapped Factory:", self.GameModules[game.GameId])
+
 	if not self.State.IsAuthenticated then
 		if self.RegisteredTabs.Game then
 			self.RegisteredTabs.Game:Destroy()
@@ -87,7 +92,10 @@ function AloHubApp:LoadGameTab()
 	end
 
 	if factory then
+		print("Loading game tab...")
 		self.RegisteredTabs.Game = factory(self)
+	else
+		warn("No game module found for GameId:", game.GameId)
 	end
 end
 
