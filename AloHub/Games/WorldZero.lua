@@ -15,7 +15,7 @@ return function(app)
     local offsetMode = "Above"
     local offsetDistance = 3
     local attackSpeed = 3
-    local mapDelay = 0.2
+    local mapDelay = 0.15
     local mapHits = 2
 
     local yLockEnabled = false
@@ -192,6 +192,25 @@ return function(app)
         return (targetPos - root.Position).Magnitude <= (threshold or 1.25)
     end
 
+    local function getTargetPosition(mobCF)
+        if selectionMode == "Map" then
+            local safeMode = offsetMode
+            if safeMode == "Above" then
+                safeMode = "Behind"
+            end
+
+            return mobCF.Position + getOffsetFromTarget(mobCF, safeMode, offsetDistance)
+        else
+            local targetPos = mobCF.Position + getOffsetFromTarget(mobCF, offsetMode, offsetDistance)
+
+            if offsetMode == "Above" then
+                targetPos = Vector3.new(targetPos.X, mobCF.Position.Y + offsetDistance, targetPos.Z)
+            end
+
+            return targetPos
+        end
+    end
+
     local function moveToMob(mob)
         if not isMobAlive(mob) then
             return
@@ -204,18 +223,20 @@ return function(app)
             return
         end
 
-        local targetPos = mobCF.Position + getOffsetFromTarget(mobCF, offsetMode, offsetDistance)
-
-        if offsetMode == "Above" then
-            targetPos = Vector3.new(targetPos.X, mobCF.Position.Y + offsetDistance, targetPos.Z)
-            setLockedHeight(targetPos.Y)
-        else
-            stopHeightLock()
-        end
-
+        local targetPos = getTargetPosition(mobCF)
         local targetCF = CFrame.new(targetPos, mobCF.Position)
 
         stopCurrentTween()
+
+        if selectionMode == "Map" then
+            stopHeightLock()
+        else
+            if offsetMode == "Above" then
+                setLockedHeight(targetPos.Y)
+            else
+                stopHeightLock()
+            end
+        end
 
         if moveMode == "Teleport" then
             clearVerticalVelocity(root)
@@ -230,7 +251,7 @@ return function(app)
         end
 
         if moveMode == "Tween" then
-            if humanoid then
+            if selectionMode ~= "Map" and humanoid then
                 humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
             end
 
@@ -302,6 +323,8 @@ return function(app)
         selectionMode = selected
         mapIndex = 1
         refreshMapCycle()
+        stopCurrentTween()
+        stopHeightLock()
         print("Selection Mode:", selected)
     end)
 
@@ -313,7 +336,7 @@ return function(app)
     tab:AddDropdown("Tween Position", {"Front", "Behind", "Above", "Left", "Right"}, function(selected)
         offsetMode = selected
 
-        if selected ~= "Above" then
+        if selectionMode == "Map" or selected ~= "Above" then
             stopHeightLock()
         end
 
@@ -324,7 +347,7 @@ return function(app)
         offsetDistance = value
         print("Tween Distance:", value)
 
-        if offsetMode ~= "Above" then
+        if selectionMode == "Map" or offsetMode ~= "Above" then
             stopHeightLock()
         end
     end)
@@ -359,18 +382,26 @@ return function(app)
                     moveToMob(mob)
                 end
                 task.wait(0.05)
+
             elseif autoMove and selectionMode == "Map" then
                 local mob = getNextMapMob()
                 if mob then
                     moveToMob(mob)
+
+                    if moveMode == "Tween" then
+                        task.wait(math.clamp(mapDelay, 0.05, 0.3))
+                    else
+                        task.wait(0.03)
+                    end
 
                     if autoAttack then
                         for _ = 1, mapHits do
                             if not autoMove or selectionMode ~= "Map" or not isMobAlive(mob) then
                                 break
                             end
+
                             attackMob(mob)
-                            task.wait(0.05)
+                            task.wait(0.04)
                         end
                     end
                 end
@@ -385,7 +416,13 @@ return function(app)
 
     task.spawn(function()
         while true do
-            if yLockEnabled and autoMove and offsetMode == "Above" and lockedY then
+            if yLockEnabled
+                and autoMove
+                and selectionMode ~= "Map"
+                and moveMode == "Tween"
+                and offsetMode == "Above"
+                and lockedY then
+
                 local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
                 if root then
                     local pos = root.Position
@@ -393,6 +430,7 @@ return function(app)
                     clearVerticalVelocity(root)
                 end
             end
+
             task.wait(0.03)
         end
     end)
