@@ -3,15 +3,14 @@ return function(app)
     local Players = game:GetService("Players")
     local Workspace = game:GetService("Workspace")
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
-    local PathfindingService = game:GetService("PathfindingService")
 
     local player = Players.LocalPlayer
     local autoMove = false
     local autoAttack = false
     local currentTween = nil
-    local currentPathId = 0
 
     local moveMode = "Tween"
+    local selectionMode = "Distance"
     local tweenSpeed = 60
     local offsetMode = "Above"
     local offsetDistance = 3
@@ -19,6 +18,9 @@ return function(app)
 
     local yLockEnabled = false
     local lockedY = nil
+
+    local mapIndex = 1
+    local currentMapTarget = nil
 
     local AttackRemote = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Combat"):WaitForChild("Attack")
 
@@ -84,30 +86,96 @@ return function(app)
         return typeof(value) == "number" and value > 0
     end
 
-    local function getNearestMob()
-        local root = getRoot()
+    local function getAliveMobs()
         local mobsFolder = Workspace:FindFirstChild("Mobs")
         if not mobsFolder then
-            return nil
+            return {}
         end
+
+        local alive = {}
+
+        for _, mob in ipairs(mobsFolder:GetChildren()) do
+            if isMobAlive(mob) and getMobPos(mob) then
+                table.insert(alive, mob)
+            end
+        end
+
+        return alive
+    end
+
+    local function getNearestMob()
+        local root = getRoot()
+        local mobs = getAliveMobs()
 
         local nearestMob = nil
         local nearestDist = math.huge
 
-        for _, mob in ipairs(mobsFolder:GetChildren()) do
-            if isMobAlive(mob) then
-                local pos = getMobPos(mob)
-                if pos then
-                    local dist = (pos - root.Position).Magnitude
-                    if dist < nearestDist then
-                        nearestDist = dist
-                        nearestMob = mob
-                    end
+        for _, mob in ipairs(mobs) do
+            local pos = getMobPos(mob)
+            if pos then
+                local dist = (pos - root.Position).Magnitude
+                if dist < nearestDist then
+                    nearestDist = dist
+                    nearestMob = mob
                 end
             end
         end
 
         return nearestMob, nearestDist
+    end
+
+    local function getNextMapMob()
+        local mobs = getAliveMobs()
+        if #mobs == 0 then
+            currentMapTarget = nil
+            mapIndex = 1
+            return nil
+        end
+
+        if currentMapTarget and isMobAlive(currentMapTarget) then
+            return currentMapTarget
+        end
+
+        if mapIndex > #mobs then
+            mapIndex = 1
+        end
+
+        local startIndex = mapIndex
+
+        repeat
+            local mob = mobs[mapIndex]
+            mapIndex += 1
+
+            if mapIndex > #mobs then
+                mapIndex = 1
+            end
+
+            if isMobAlive(mob) then
+                currentMapTarget = mob
+                return mob
+            end
+        until mapIndex == startIndex
+
+        currentMapTarget = nil
+        return nil
+    end
+
+    local function getTargetMob()
+        if selectionMode == "Map" then
+            return getNextMapMob()
+        end
+
+        return getNearestMob()
+    end
+
+    local function advanceMapTargetIfNeeded(mob)
+        if selectionMode ~= "Map" then
+            return
+        end
+
+        if not mob or not isMobAlive(mob) then
+            currentMapTarget = nil
+        end
     end
 
     local function getOffsetFromTarget(targetCF, mode, distance)
@@ -133,16 +201,13 @@ return function(app)
         end
     end
 
-    local function stopCurrentPath()
-        currentPathId += 1
-    end
-
     local function isNearTarget(root, targetPos, threshold)
         return (targetPos - root.Position).Magnitude <= (threshold or 1.25)
     end
 
     local function moveToMob(mob)
         if not isMobAlive(mob) then
+            advanceMapTargetIfNeeded(mob)
             return
         end
 
@@ -150,6 +215,7 @@ return function(app)
         local humanoid = getHumanoid()
         local mobCF = getMobCF(mob)
         if not mobCF then
+            advanceMapTargetIfNeeded(mob)
             return
         end
 
@@ -172,7 +238,6 @@ return function(app)
         end
 
         if moveMode == "Teleport" then
-            stopCurrentPath()
             clearVerticalVelocity(root)
             root.CFrame = targetCF
             clearVerticalVelocity(root)
@@ -180,8 +245,6 @@ return function(app)
         end
 
         if moveMode == "Tween" then
-            stopCurrentPath()
-
             if humanoid then
                 humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
             end
@@ -205,58 +268,6 @@ return function(app)
 
             return
         end
-
-        if moveMode == "Pathfinder" then
-            stopHeightLock()
-
-            if not humanoid then
-                return
-            end
-
-            stopCurrentPath()
-            local myPathId = currentPathId + 1
-            currentPathId = myPathId
-
-            task.spawn(function()
-                local path = PathfindingService:CreatePath({
-                    AgentRadius = 2,
-                    AgentHeight = 5,
-                    AgentCanJump = true,
-                    AgentCanClimb = true,
-                    WaypointSpacing = 4,
-                })
-
-                local ok = pcall(function()
-                    path:ComputeAsync(root.Position, targetPos)
-                end)
-
-                if not ok or path.Status ~= Enum.PathStatus.Success then
-                    return
-                end
-
-                local waypoints = path:GetWaypoints()
-                for _, waypoint in ipairs(waypoints) do
-                    if not autoMove or moveMode ~= "Pathfinder" or currentPathId ~= myPathId then
-                        return
-                    end
-
-                    if not isMobAlive(mob) then
-                        return
-                    end
-
-                    humanoid:MoveTo(waypoint.Position)
-
-                    if waypoint.Action == Enum.PathWaypointAction.Jump then
-                        humanoid.Jump = true
-                    end
-
-                    local reached = humanoid.MoveToFinished:Wait()
-                    if not reached then
-                        return
-                    end
-                end
-            end)
-        end
     end
 
     local function attackMob(mob)
@@ -266,12 +277,14 @@ return function(app)
         end
 
         if not isMobAlive(mob) then
+            advanceMapTargetIfNeeded(mob)
             return
         end
 
         local root = getRoot()
         local mobPos = getMobPos(mob)
         if not mobPos then
+            advanceMapTargetIfNeeded(mob)
             return
         end
 
@@ -287,6 +300,12 @@ return function(app)
         AttackRemote:FireServer("Berserker" .. tostring(math.random(1, 5)), pos, dir, 67)
 
         print("⚔️ Attack sent to", mob.Name)
+
+        task.delay(0.2, function()
+            if not isMobAlive(mob) then
+                advanceMapTargetIfNeeded(mob)
+            end
+        end)
     end
 
     local tab = app.Window:CreateTab("World//Zero", "🌍")
@@ -299,21 +318,21 @@ return function(app)
 
         if not state then
             stopCurrentTween()
-            stopCurrentPath()
             stopHeightLock()
         end
     end)
 
-    tab:AddDropdown("Mode", {"Tween", "Teleport", "Pathfinder"}, function(selected)
+    tab:AddDropdown("Mode", {"Tween", "Teleport"}, function(selected)
         moveMode = selected
         stopCurrentTween()
-        stopCurrentPath()
-
-        if selected == "Pathfinder" then
-            stopHeightLock()
-        end
-
         print("Move Mode:", selected)
+    end)
+
+    tab:AddDropdown("Selection", {"Distance", "Map"}, function(selected)
+        selectionMode = selected
+        currentMapTarget = nil
+        mapIndex = 1
+        print("Selection Mode:", selected)
     end)
 
     tab:AddSlider("Tween Speed", 10, 300, tweenSpeed, function(value)
@@ -355,7 +374,7 @@ return function(app)
     task.spawn(function()
         while true do
             if autoMove then
-                local mob = getNearestMob()
+                local mob = getTargetMob()
                 if mob then
                     moveToMob(mob)
                 end
@@ -366,7 +385,7 @@ return function(app)
 
     task.spawn(function()
         while true do
-            if yLockEnabled and autoMove and moveMode ~= "Pathfinder" and offsetMode == "Above" and lockedY then
+            if yLockEnabled and autoMove and offsetMode == "Above" and lockedY then
                 local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
                 if root then
                     local pos = root.Position
@@ -381,7 +400,7 @@ return function(app)
     task.spawn(function()
         while true do
             if autoAttack then
-                local mob = getNearestMob()
+                local mob = getTargetMob()
                 if mob then
                     attackMob(mob)
                 end
