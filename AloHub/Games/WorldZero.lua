@@ -10,19 +10,15 @@ return function(app)
     local currentTween = nil
 
     local moveMode = "Tween"
-    local selectionMode = "Distance"
     local tweenSpeed = 60
-    local offsetMode = "Above"
-    local offsetDistance = 3
     local attackSpeed = 3
-    local mapDelay = 0.15
-    local mapHits = 2
+
+    local offsetX = 0
+    local offsetY = 3
+    local offsetZ = 0
 
     local yLockEnabled = false
     local lockedY = nil
-
-    local mapIndex = 1
-    local mapCycle = {}
 
     local AttackRemote = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Combat"):WaitForChild("Attack")
 
@@ -88,97 +84,30 @@ return function(app)
         return typeof(value) == "number" and value > 0
     end
 
-    local function getAliveMobs()
-        local mobsFolder = Workspace:FindFirstChild("Mobs")
-        if not mobsFolder then
-            return {}
-        end
-
-        local alive = {}
-
-        for _, mob in ipairs(mobsFolder:GetChildren()) do
-            if isMobAlive(mob) and getMobPos(mob) then
-                table.insert(alive, mob)
-            end
-        end
-
-        return alive
-    end
-
-    local function refreshMapCycle()
-        mapCycle = getAliveMobs()
-        if mapIndex > #mapCycle then
-            mapIndex = 1
-        end
-    end
-
     local function getNearestMob()
         local root = getRoot()
-        local mobs = getAliveMobs()
+        local mobsFolder = Workspace:FindFirstChild("Mobs")
+        if not mobsFolder then
+            return nil
+        end
 
         local nearestMob = nil
         local nearestDist = math.huge
 
-        for _, mob in ipairs(mobs) do
-            local pos = getMobPos(mob)
-            if pos then
-                local dist = (pos - root.Position).Magnitude
-                if dist < nearestDist then
-                    nearestDist = dist
-                    nearestMob = mob
+        for _, mob in ipairs(mobsFolder:GetChildren()) do
+            if isMobAlive(mob) then
+                local pos = getMobPos(mob)
+                if pos then
+                    local dist = (pos - root.Position).Magnitude
+                    if dist < nearestDist then
+                        nearestDist = dist
+                        nearestMob = mob
+                    end
                 end
             end
         end
 
-        return nearestMob
-    end
-
-    local function getNextMapMob()
-        if #mapCycle == 0 then
-            refreshMapCycle()
-        end
-
-        if #mapCycle == 0 then
-            return nil
-        end
-
-        local checked = 0
-        while checked < #mapCycle do
-            if mapIndex > #mapCycle then
-                refreshMapCycle()
-                if #mapCycle == 0 then
-                    return nil
-                end
-                mapIndex = 1
-            end
-
-            local mob = mapCycle[mapIndex]
-            mapIndex += 1
-            checked += 1
-
-            if isMobAlive(mob) and getMobPos(mob) then
-                return mob
-            end
-        end
-
-        refreshMapCycle()
-        return nil
-    end
-
-    local function getOffsetFromTarget(targetCF, mode, distance)
-        if mode == "Front" then
-            return targetCF.LookVector * distance
-        elseif mode == "Behind" then
-            return -targetCF.LookVector * distance
-        elseif mode == "Above" then
-            return Vector3.new(0, distance, 0)
-        elseif mode == "Left" then
-            return -targetCF.RightVector * distance
-        elseif mode == "Right" then
-            return targetCF.RightVector * distance
-        end
-
-        return Vector3.new(0, distance, 0)
+        return nearestMob, nearestDist
     end
 
     local function stopCurrentTween()
@@ -192,23 +121,11 @@ return function(app)
         return (targetPos - root.Position).Magnitude <= (threshold or 1.25)
     end
 
-    local function getTargetPosition(mobCF)
-        if selectionMode == "Map" then
-            local safeMode = offsetMode
-            if safeMode == "Above" then
-                safeMode = "Behind"
-            end
-
-            return mobCF.Position + getOffsetFromTarget(mobCF, safeMode, offsetDistance)
-        else
-            local targetPos = mobCF.Position + getOffsetFromTarget(mobCF, offsetMode, offsetDistance)
-
-            if offsetMode == "Above" then
-                targetPos = Vector3.new(targetPos.X, mobCF.Position.Y + offsetDistance, targetPos.Z)
-            end
-
-            return targetPos
-        end
+    local function getOffsetPosition(targetCF)
+        return targetCF.Position
+            + targetCF.RightVector * offsetX
+            + Vector3.new(0, offsetY, 0)
+            + targetCF.LookVector * offsetZ
     end
 
     local function moveToMob(mob)
@@ -223,19 +140,15 @@ return function(app)
             return
         end
 
-        local targetPos = getTargetPosition(mobCF)
+        local targetPos = getOffsetPosition(mobCF)
         local targetCF = CFrame.new(targetPos, mobCF.Position)
 
         stopCurrentTween()
 
-        if selectionMode == "Map" then
-            stopHeightLock()
+        if math.abs(offsetY) > 0.05 then
+            setLockedHeight(targetPos.Y)
         else
-            if offsetMode == "Above" then
-                setLockedHeight(targetPos.Y)
-            else
-                stopHeightLock()
-            end
+            stopHeightLock()
         end
 
         if moveMode == "Teleport" then
@@ -251,7 +164,7 @@ return function(app)
         end
 
         if moveMode == "Tween" then
-            if selectionMode ~= "Map" and humanoid then
+            if humanoid and math.abs(offsetY) > 0.05 then
                 humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
             end
 
@@ -275,7 +188,12 @@ return function(app)
     end
 
     local function attackMob(mob)
-        if not AttackRemote or not isMobAlive(mob) then
+        if not AttackRemote then
+            warn("AttackRemote not found")
+            return
+        end
+
+        if not isMobAlive(mob) then
             return
         end
 
@@ -308,8 +226,6 @@ return function(app)
         if not state then
             stopCurrentTween()
             stopHeightLock()
-        else
-            refreshMapCycle()
         end
     end)
 
@@ -319,47 +235,29 @@ return function(app)
         print("Move Mode:", selected)
     end)
 
-    tab:AddDropdown("Selection", {"Distance", "Map"}, function(selected)
-        selectionMode = selected
-        mapIndex = 1
-        refreshMapCycle()
-        stopCurrentTween()
-        stopHeightLock()
-        print("Selection Mode:", selected)
-    end)
-
     tab:AddSlider("Tween Speed", 10, 300, tweenSpeed, function(value)
         tweenSpeed = value
         print("Tween Speed:", value)
     end)
 
-    tab:AddDropdown("Tween Position", {"Front", "Behind", "Above", "Left", "Right"}, function(selected)
-        offsetMode = selected
+    tab:AddSlider("Offset X", -25, 25, offsetX, function(value)
+        offsetX = value
+        print("Offset X:", value)
+    end)
 
-        if selectionMode == "Map" or selected ~= "Above" then
+    tab:AddSlider("Offset Y", -25, 25, offsetY, function(value)
+        offsetY = value
+
+        if math.abs(value) <= 0.05 then
             stopHeightLock()
         end
 
-        print("Tween Position:", selected)
+        print("Offset Y:", value)
     end)
 
-    tab:AddSlider("Tween Distance", 1, 25, offsetDistance, function(value)
-        offsetDistance = value
-        print("Tween Distance:", value)
-
-        if selectionMode == "Map" or offsetMode ~= "Above" then
-            stopHeightLock()
-        end
-    end)
-
-    tab:AddSlider("Map Delay", 0.05, 1, mapDelay, function(value)
-        mapDelay = value
-        print("Map Delay:", value)
-    end)
-
-    tab:AddSlider("Map Hits", 1, 5, mapHits, function(value)
-        mapHits = math.floor(value)
-        print("Map Hits:", mapHits)
+    tab:AddSlider("Offset Z", -25, 25, offsetZ, function(value)
+        offsetZ = value
+        print("Offset Z:", value)
     end)
 
     tab:AddSection("Combat")
@@ -376,53 +274,19 @@ return function(app)
 
     task.spawn(function()
         while true do
-            if autoMove and selectionMode == "Distance" then
+            if autoMove then
                 local mob = getNearestMob()
                 if mob then
                     moveToMob(mob)
                 end
-                task.wait(0.05)
-
-            elseif autoMove and selectionMode == "Map" then
-                local mob = getNextMapMob()
-                if mob then
-                    moveToMob(mob)
-
-                    if moveMode == "Tween" then
-                        task.wait(math.clamp(mapDelay, 0.05, 0.3))
-                    else
-                        task.wait(0.03)
-                    end
-
-                    if autoAttack then
-                        for _ = 1, mapHits do
-                            if not autoMove or selectionMode ~= "Map" or not isMobAlive(mob) then
-                                break
-                            end
-
-                            attackMob(mob)
-                            task.wait(0.04)
-                        end
-                    end
-                end
-
-                stopCurrentTween()
-                task.wait(mapDelay)
-            else
-                task.wait(0.05)
             end
+            task.wait(0.05)
         end
     end)
 
     task.spawn(function()
         while true do
-            if yLockEnabled
-                and autoMove
-                and selectionMode ~= "Map"
-                and moveMode == "Tween"
-                and offsetMode == "Above"
-                and lockedY then
-
+            if yLockEnabled and autoMove and moveMode == "Tween" and lockedY then
                 local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
                 if root then
                     local pos = root.Position
@@ -430,22 +294,19 @@ return function(app)
                     clearVerticalVelocity(root)
                 end
             end
-
             task.wait(0.03)
         end
     end)
 
     task.spawn(function()
         while true do
-            if autoAttack and selectionMode == "Distance" then
+            if autoAttack then
                 local mob = getNearestMob()
                 if mob then
                     attackMob(mob)
                 end
-                task.wait(1 / math.max(attackSpeed, 1))
-            else
-                task.wait(0.05)
             end
+            task.wait(1 / math.max(attackSpeed, 1))
         end
     end)
 
