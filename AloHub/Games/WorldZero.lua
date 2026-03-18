@@ -15,12 +15,14 @@ return function(app)
     local offsetMode = "Above"
     local offsetDistance = 3
     local attackSpeed = 3
+    local mapDelay = 0.2
+    local mapHits = 2
 
     local yLockEnabled = false
     local lockedY = nil
 
     local mapIndex = 1
-    local currentMapTarget = nil
+    local mapCycle = {}
 
     local AttackRemote = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Combat"):WaitForChild("Attack")
 
@@ -103,6 +105,13 @@ return function(app)
         return alive
     end
 
+    local function refreshMapCycle()
+        mapCycle = getAliveMobs()
+        if mapIndex > #mapCycle then
+            mapIndex = 1
+        end
+    end
+
     local function getNearestMob()
         local root = getRoot()
         local mobs = getAliveMobs()
@@ -121,61 +130,39 @@ return function(app)
             end
         end
 
-        return nearestMob, nearestDist
+        return nearestMob
     end
 
     local function getNextMapMob()
-        local mobs = getAliveMobs()
-        if #mobs == 0 then
-            currentMapTarget = nil
-            mapIndex = 1
+        if #mapCycle == 0 then
+            refreshMapCycle()
+        end
+
+        if #mapCycle == 0 then
             return nil
         end
 
-        if currentMapTarget and isMobAlive(currentMapTarget) then
-            return currentMapTarget
-        end
-
-        if mapIndex > #mobs then
-            mapIndex = 1
-        end
-
-        local startIndex = mapIndex
-
-        repeat
-            local mob = mobs[mapIndex]
-            mapIndex += 1
-
-            if mapIndex > #mobs then
+        local checked = 0
+        while checked < #mapCycle do
+            if mapIndex > #mapCycle then
+                refreshMapCycle()
+                if #mapCycle == 0 then
+                    return nil
+                end
                 mapIndex = 1
             end
 
-            if isMobAlive(mob) then
-                currentMapTarget = mob
+            local mob = mapCycle[mapIndex]
+            mapIndex += 1
+            checked += 1
+
+            if isMobAlive(mob) and getMobPos(mob) then
                 return mob
             end
-        until mapIndex == startIndex
+        end
 
-        currentMapTarget = nil
+        refreshMapCycle()
         return nil
-    end
-
-    local function getTargetMob()
-        if selectionMode == "Map" then
-            return getNextMapMob()
-        end
-
-        return getNearestMob()
-    end
-
-    local function advanceMapTargetIfNeeded(mob)
-        if selectionMode ~= "Map" then
-            return
-        end
-
-        if not mob or not isMobAlive(mob) then
-            currentMapTarget = nil
-        end
     end
 
     local function getOffsetFromTarget(targetCF, mode, distance)
@@ -207,7 +194,6 @@ return function(app)
 
     local function moveToMob(mob)
         if not isMobAlive(mob) then
-            advanceMapTargetIfNeeded(mob)
             return
         end
 
@@ -215,7 +201,6 @@ return function(app)
         local humanoid = getHumanoid()
         local mobCF = getMobCF(mob)
         if not mobCF then
-            advanceMapTargetIfNeeded(mob)
             return
         end
 
@@ -232,14 +217,14 @@ return function(app)
 
         stopCurrentTween()
 
-        if isNearTarget(root, targetPos, 1.25) then
+        if moveMode == "Teleport" then
+            clearVerticalVelocity(root)
+            root.CFrame = targetCF
             clearVerticalVelocity(root)
             return
         end
 
-        if moveMode == "Teleport" then
-            clearVerticalVelocity(root)
-            root.CFrame = targetCF
+        if isNearTarget(root, targetPos, 1.25) then
             clearVerticalVelocity(root)
             return
         end
@@ -265,26 +250,17 @@ return function(app)
                     clearVerticalVelocity(root)
                 end
             end)
-
-            return
         end
     end
 
     local function attackMob(mob)
-        if not AttackRemote then
-            warn("AttackRemote not found")
-            return
-        end
-
-        if not isMobAlive(mob) then
-            advanceMapTargetIfNeeded(mob)
+        if not AttackRemote or not isMobAlive(mob) then
             return
         end
 
         local root = getRoot()
         local mobPos = getMobPos(mob)
         if not mobPos then
-            advanceMapTargetIfNeeded(mob)
             return
         end
 
@@ -298,14 +274,6 @@ return function(app)
         local pos = root.Position + dir * 5
 
         AttackRemote:FireServer("Berserker" .. tostring(math.random(1, 5)), pos, dir, 67)
-
-        print("⚔️ Attack sent to", mob.Name)
-
-        task.delay(0.2, function()
-            if not isMobAlive(mob) then
-                advanceMapTargetIfNeeded(mob)
-            end
-        end)
     end
 
     local tab = app.Window:CreateTab("World//Zero", "🌍")
@@ -319,6 +287,8 @@ return function(app)
         if not state then
             stopCurrentTween()
             stopHeightLock()
+        else
+            refreshMapCycle()
         end
     end)
 
@@ -330,8 +300,8 @@ return function(app)
 
     tab:AddDropdown("Selection", {"Distance", "Map"}, function(selected)
         selectionMode = selected
-        currentMapTarget = nil
         mapIndex = 1
+        refreshMapCycle()
         print("Selection Mode:", selected)
     end)
 
@@ -359,6 +329,16 @@ return function(app)
         end
     end)
 
+    tab:AddSlider("Map Delay", 0.05, 1, mapDelay, function(value)
+        mapDelay = value
+        print("Map Delay:", value)
+    end)
+
+    tab:AddSlider("Map Hits", 1, 5, mapHits, function(value)
+        mapHits = math.floor(value)
+        print("Map Hits:", mapHits)
+    end)
+
     tab:AddSection("Combat")
 
     tab:AddToggle("Auto Attack", false, function(state)
@@ -373,13 +353,33 @@ return function(app)
 
     task.spawn(function()
         while true do
-            if autoMove then
-                local mob = getTargetMob()
+            if autoMove and selectionMode == "Distance" then
+                local mob = getNearestMob()
                 if mob then
                     moveToMob(mob)
                 end
+                task.wait(0.05)
+            elseif autoMove and selectionMode == "Map" then
+                local mob = getNextMapMob()
+                if mob then
+                    moveToMob(mob)
+
+                    if autoAttack then
+                        for _ = 1, mapHits do
+                            if not autoMove or selectionMode ~= "Map" or not isMobAlive(mob) then
+                                break
+                            end
+                            attackMob(mob)
+                            task.wait(0.05)
+                        end
+                    end
+                end
+
+                stopCurrentTween()
+                task.wait(mapDelay)
+            else
+                task.wait(0.05)
             end
-            task.wait(0.05)
         end
     end)
 
@@ -399,13 +399,15 @@ return function(app)
 
     task.spawn(function()
         while true do
-            if autoAttack then
-                local mob = getTargetMob()
+            if autoAttack and selectionMode == "Distance" then
+                local mob = getNearestMob()
                 if mob then
                     attackMob(mob)
                 end
+                task.wait(1 / math.max(attackSpeed, 1))
+            else
+                task.wait(0.05)
             end
-            task.wait(1 / math.max(attackSpeed, 1))
         end
     end)
 
